@@ -1,21 +1,34 @@
 #include<stdio.h>
 #include<malloc.h>
+#include<time.h>
+#include<stdlib.h>
+/**
+ * 迷宫
+ * */
 typedef struct maze{
     int* maze;
     int row;
     int column;
+    void (*print)(struct maze *);
+    void (*generate)(struct maze *, int);
 }maze, *pMaze;
+/**
+ * 队列节点
+ * */
 typedef struct queueNode{
     void *data;
     struct queueNode * last;
     struct queueNode * next;
 }queueNode, *pQueueNode;
+/**
+ * 队列
+ * */
 typedef struct queue{
     pQueueNode head;
     pQueueNode tail;
-    int (*enQueue)(struct queue *self, void* data);
-    void* (*outQueue)(struct queue *self);
-    void (*freeQueue)(struct queue *self);
+    int (*enQueue)(struct queue *, void *);
+    void* (*outQueue)(struct queue *);
+    void (*freeQueue)(struct queue *);
 }queue, *pQueue;
 
 int EAST = 1;
@@ -23,15 +36,16 @@ int SOUTH = 1<<1;
 int WEST = 1<<2;
 int NORTH = 1<<3;
 int WALK = 16;
+int ROAD = 0;
 int START = 17;
 int END = 18;
 
 char* show[] = {
-    " ", "→", "↓", "↘",
+    "  ", "→", "↓", "↘",
     "←", "↔", "↙", "",
     "↑", "↗", "↕", "",
     "↖","","","",
-    "■","S","E"
+    "⬛","S","E"
 };
 
 /**
@@ -97,6 +111,62 @@ pQueue initQueue(){
 }
 
 /**
+ * 获取位置信息
+ * self:自身
+ * row:行
+ * column:列
+ * return:该位置的代码，参考全局变量show
+ * */
+int _getByXY(pMaze self, int row, int column){
+    return self->maze[row*self->column+column];
+}
+
+/**
+ * 输出
+ * self:自身
+ * */
+void _print(pMaze self){
+    for(int i = 0; i < self->row; i++)
+    {
+        for(int j = 0; j < self->column; j++)
+        {
+            printf(show[_getByXY(self, i ,j)]);
+        }
+        printf("\n");
+    }    
+}
+
+/**
+ * 生成路径
+ * */
+void _generateRoad(pMaze self, int seed){
+    int size = self->column*self->row;
+    int r = self->row>>1;
+    int c = self->column>>1;
+    srand(seed);
+    for(int i = 0; i < r; i++)
+    {
+        int row = rand()%self->row;
+        int startColumn = rand()%self->column;
+        int l = rand()%(self->column>>1)+(self->column>>2);
+        for(int j = 0; j < l; j++)
+        {
+            self->maze[row*self->column + (startColumn+j)%self->column] = ROAD;
+        }        
+    }
+    for(int i = 0; i < c; i++)
+    {
+        int column = rand()%self->column;
+        int startRow = rand()%self->row;
+        int l = rand()%(self->row>>1)+self->row>>2;
+        for(int j = 0; j < l; j++)
+        {
+            self->maze[((startRow+j)%self->row)*self->column + column] = ROAD;
+        }        
+    }
+}
+
+/**
  * 创建迷宫
  * */
 pMaze initMaze(int row, int column){
@@ -110,6 +180,8 @@ pMaze initMaze(int row, int column){
         m[i]=WALK;
     }
     maze->maze = m;
+    maze->print = _print;
+    maze->generate = _generateRoad;
     return maze;
 }
 
@@ -117,6 +189,8 @@ pMaze initMaze(int row, int column){
  * 主方法
  * */
 int main(){
-    
+    pMaze maze = initMaze(30, 50);
+    maze->generate(maze, 20190402);
+    maze->print(maze);
     return 0;
 }
