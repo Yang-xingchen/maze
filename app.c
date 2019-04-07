@@ -11,6 +11,8 @@ typedef struct maze{
     int column;
     void (*print)(struct maze *);
     void (*generate)(struct maze *, int);
+    void (*save)(struct maze *, char *);
+    void (*free)(struct maze *);
 }maze, *pMaze;
 /**
  * 队列节点
@@ -26,9 +28,9 @@ typedef struct queueNode{
 typedef struct queue{
     pQueueNode head;
     pQueueNode tail;
-    int (*enQueue)(struct queue *, void *);
-    void* (*outQueue)(struct queue *);
-    void (*freeQueue)(struct queue *);
+    int (*offer)(struct queue *, void *);
+    void* (*peek)(struct queue *);
+    void (*free)(struct queue *);
 }queue, *pQueue;
 
 int EAST = 1;
@@ -45,7 +47,7 @@ char* show[] = {
     "←", "↔", "↙", "",
     "↑", "↗", "↕", "",
     "↖","","","",
-    "⬛","S","E"
+    "⬛","S ","E "
 };
 
 /**
@@ -93,7 +95,7 @@ void* _outQueue(pQueue self){
  * self:自身
  * */
 void _freeQueue(pQueue self){
-    while(NULL != self->outQueue);
+    while(NULL != self->peek);
     free(self);
 }
 
@@ -104,9 +106,9 @@ pQueue initQueue(){
     pQueue q = (pQueue)malloc(sizeof(queue));
     q->head = NULL;
     q->tail = NULL;
-    q->enQueue = _enQueue;
-    q->outQueue = _outQueue;
-    q->freeQueue = _freeQueue;
+    q->offer = _enQueue;
+    q->peek = _outQueue;
+    q->free = _freeQueue;
     return q;
 }
 
@@ -137,15 +139,25 @@ void _print(pMaze self){
 }
 
 /**
+ * 删除迷宫
+ * self:自身
+ * */
+void _freeMaze(pMaze self){
+    free(self->maze);
+    free(self);
+}
+
+/**
  * 生成路径
+ * self:自身
+ * seed:种子
  * */
 void _generateRoad(pMaze self, int seed){
     int size = self->column*self->row;
     int r = (self->row>>1)+(self->row>>2)+(self->row>>4);
     int c = (self->column>>1)+(self->column>>2)+(self->column>>4);
     srand(seed);
-    while(r>0 && c>0)
-    {
+    while(r>0 && c>0) {
         if (r>0) {
             int row;
             int startColumn;
@@ -203,10 +215,69 @@ void _generateRoad(pMaze self, int seed){
             c--;  
         }      
     }
+    while(1){
+        int r = rand()%self->row;
+        int c = rand()%self->column;
+        if (ROAD == self->maze[r*self->row+self->column]) {
+            self->maze[r*self->row+self->column] = START;
+            break;
+        }        
+    }    
+    while(1){
+        int r = rand()%self->row;
+        int c = rand()%self->column;
+        if (ROAD == self->maze[r*self->row+self->column]) {
+            self->maze[r*self->row+self->column] = END;
+            break;
+        }        
+    }    
+}
+
+/**
+ * 保存到文件
+ * self:自身
+ * fileName:要保存的文件名
+ * */
+void _saveToFile(pMaze self, char* fileName){
+    FILE *file = fopen(fileName, "w");
+    fprintf(file, "%d %d\n", self->row, self->column);
+    int size = self->row * self->column;
+    for(int i = 0; i < size; i++)
+    {
+        fprintf(file, "%d ", self->maze[i]);
+    }
+    fclose(file);
+}
+
+/**
+ * 通过文件创建迷宫
+ * fileName:文件名
+ * return:初始化的迷宫
+ * */
+pMaze initMazeByFile(char *fileName){
+    FILE *file = fopen(fileName,"r");
+    pMaze maze = (pMaze)malloc(sizeof(maze));
+    fscanf(file, "%d %d\n",&(maze->row), &(maze->column));
+    int size = maze->row*maze->column;
+    int *m = (int*)malloc(sizeof(int)*size);
+    for(int i = 0; i < size; i++)
+    {
+        fscanf(file, "%d", &(m[i]));
+    }
+    fclose(file);
+    maze->maze = m;
+    maze->print = _print;
+    maze->generate = _generateRoad;
+    maze->save = _saveToFile;
+    maze->free = _freeMaze;
+    return maze;
 }
 
 /**
  * 创建迷宫
+ * row:行数
+ * column:列数
+ * return:初始化的迷宫
  * */
 pMaze initMaze(int row, int column){
     pMaze maze = (pMaze)malloc(sizeof(maze));
@@ -221,6 +292,8 @@ pMaze initMaze(int row, int column){
     maze->maze = m;
     maze->print = _print;
     maze->generate = _generateRoad;
+    maze->save = _saveToFile;
+    maze->free = _freeMaze;
     return maze;
 }
 
@@ -228,8 +301,13 @@ pMaze initMaze(int row, int column){
  * 主方法
  * */
 int main(){
-    pMaze maze = initMaze(20, 35);
+    pMaze maze = initMaze(20, 40);
     maze->generate(maze, time(NULL));
     maze->print(maze);
+    maze->save(maze, "maze");
+    maze->free(maze);
+    printf("\n\n\n");
+    pMaze maze2 = initMazeByFile("maze");
+    maze2->print(maze2);
     return 0;
 }
