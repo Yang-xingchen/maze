@@ -141,28 +141,67 @@ void _print(pMaze self){
  * */
 void _generateRoad(pMaze self, int seed){
     int size = self->column*self->row;
-    int r = self->row>>1;
-    int c = self->column>>1;
+    int r = (self->row>>1)+(self->row>>2)+(self->row>>4);
+    int c = (self->column>>1)+(self->column>>2)+(self->column>>4);
     srand(seed);
-    for(int i = 0; i < r; i++)
+    while(r>0 && c>0)
     {
-        int row = rand()%self->row;
-        int startColumn = rand()%self->column;
-        int l = rand()%(self->column>>1)+(self->column>>2);
-        for(int j = 0; j < l; j++)
-        {
-            self->maze[row*self->column + (startColumn+j)%self->column] = ROAD;
-        }        
-    }
-    for(int i = 0; i < c; i++)
-    {
-        int column = rand()%self->column;
-        int startRow = rand()%self->row;
-        int l = rand()%(self->row>>1)+self->row>>2;
-        for(int j = 0; j < l; j++)
-        {
-            self->maze[((startRow+j)%self->row)*self->column + column] = ROAD;
-        }        
+        if (r>0) {
+            int row;
+            int startColumn;
+            do
+            {
+                row = rand()%self->row;
+                startColumn = rand()%self->column;
+            } while (ROAD==self->maze[((row+1)%self->row)*self->column + startColumn%self->column]);            
+            int l = rand()%(self->column>>1)+(self->column>>2);
+            for(int j = 0; j < l; j++)
+            {
+                int stop = 0;
+                int point = row*self->column + (startColumn+j)%self->column;
+                while(ROAD == self->maze[point]){
+                    if (!rand()&2) {
+                        break;
+                    }
+                    if (!rand()&2) {
+                        stop = 1;
+                    }                    
+                    row = rand()%self->row;
+                    startColumn = rand()%self->column;
+                    point = row*self->column + (startColumn+j)%self->column;
+                }            
+                self->maze[point] = ROAD;
+            }
+            r--;
+        }
+        if (c>0) {
+            int column;
+            int startRow;
+            do
+            {
+                column = rand()%self->column;
+                startRow = rand()%self->row;
+            } while (ROAD == self->maze[(startRow%self->row)*self->column + column+1]);
+            int l = rand()%(self->row>>1)+self->row>>2;
+            for(int j = 0; j < l; j++)
+            {
+                int stop = 0;
+                int point = ((startRow+j)%self->row)*self->column + column;
+                while(ROAD == self->maze[point]){
+                    if (!rand()&2) {
+                        break;
+                    }
+                    if (!rand()&2) {
+                        stop = 1;
+                    }                    
+                    column = rand()%self->column;
+                    startRow = rand()%self->row;
+                    point = ((startRow+j)%self->row)*self->column + column;
+                }            
+                self->maze[point] = ROAD;
+            }
+            c--;  
+        }      
     }
 }
 
@@ -189,8 +228,8 @@ pMaze initMaze(int row, int column){
  * 主方法
  * */
 int main(){
-    pMaze maze = initMaze(30, 50);
-    maze->generate(maze, 20190402);
+    pMaze maze = initMaze(20, 35);
+    maze->generate(maze, time(NULL));
     maze->print(maze);
     return 0;
 }
