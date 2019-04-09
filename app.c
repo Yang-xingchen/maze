@@ -132,7 +132,7 @@ void _print(pMaze self){
     {
         for(int j = 0; j < self->column; j++)
         {
-            printf(show[_getByXY(self, i ,j)]);
+            printf(show[_getByXY(self, i ,j)%19]);
         }
         printf("\n");
     }    
@@ -256,21 +256,21 @@ void _saveToFile(pMaze self, char* fileName){
  * */
 pMaze initMazeByFile(char *fileName){
     FILE *file = fopen(fileName,"r");
-    pMaze maze = (pMaze)malloc(sizeof(maze));
-    fscanf(file, "%d %d\n",&(maze->row), &(maze->column));
-    int size = maze->row*maze->column;
+    pMaze ret = (pMaze)malloc(sizeof(maze));
+    fscanf(file, "%d %d\n",&(ret->row), &(ret->column));
+    int size = ret->row*ret->column;
     int *m = (int*)malloc(sizeof(int)*size);
     for(int i = 0; i < size; i++)
     {
         fscanf(file, "%d", &(m[i]));
     }
     fclose(file);
-    maze->maze = m;
-    maze->print = _print;
-    maze->generate = _generateRoad;
-    maze->save = _saveToFile;
-    maze->free = _freeMaze;
-    return maze;
+    ret->maze = m;
+    ret->print = _print;
+    ret->generate = _generateRoad;
+    ret->save = _saveToFile;
+    ret->free = _freeMaze;
+    return ret;
 }
 
 /**
@@ -280,21 +280,21 @@ pMaze initMazeByFile(char *fileName){
  * return:初始化的迷宫
  * */
 pMaze initMaze(int row, int column){
-    pMaze maze = (pMaze)malloc(sizeof(maze));
-    maze->row = row;
-    maze->column = column;
+    pMaze ret = (pMaze)malloc(sizeof(maze));
+    ret->row = row;
+    ret->column = column;
     int size = row*column;
     int* m = (int*)malloc(sizeof(int)*size);
     for(int i = 0; i < size; i++)
     {
         m[i]=WALK;
     }
-    maze->maze = m;
-    maze->print = _print;
-    maze->generate = _generateRoad;
-    maze->save = _saveToFile;
-    maze->free = _freeMaze;
-    return maze;
+    ret->maze = m;
+    ret->print = _print;
+    ret->generate = _generateRoad;
+    ret->save = _saveToFile;
+    ret->free = _freeMaze;
+    return ret;
 }
 
 /**
