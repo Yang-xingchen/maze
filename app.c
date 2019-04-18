@@ -31,7 +31,7 @@ typedef union data
  * 队列节点
  * */
 typedef struct queueNode{
-    Data d;
+    pData d;
     struct queueNode * last;
     struct queueNode * next;
 }queueNode, *pQueueNode;
@@ -41,8 +41,8 @@ typedef struct queueNode{
 typedef struct queue{
     pQueueNode head;
     pQueueNode tail;
-    int (*offer)(struct queue *, Data);
-    Data (*peek)(struct queue *);
+    int (*offer)(struct queue *, pData);
+    pData (*peek)(struct queue *);
     void (*free)(struct queue *);
     int (*isNull)(struct queue *);
 }queue, *pQueue;
@@ -58,9 +58,9 @@ int END = 18;
 
 char* show[] = {
     "  ", "→ ", "↓ ", "↘ ",
-    "← ", "↔ ", "↙ ", "",
-    "↑ ", "↗ ", "↕ ", "",
-    "↖ ","","","",
+    "← ", "↔ ", "↙ ", "err",
+    "↑ ", "↗ ", "↕ ", "err",
+    "↖ ","err","err","err",
     "⬛","S ","E "
 };
 
@@ -70,7 +70,7 @@ char* show[] = {
  * data:入队的数据
  * return：是否失败
  * */
-int _enQueue(pQueue self, Data data){
+int _enQueue(pQueue self, pData data){
     if (NULL == self) {
         return 1;
     }
@@ -93,15 +93,17 @@ int _enQueue(pQueue self, Data data){
  * self:自身
  * return:出队的值，为NULL表示失败;
  * */
-Data _outQueue(pQueue self){
+pData _outQueue(pQueue self){
     if (NULL == self || NULL == self->head) {
-        Data d;
-        d.Object = NULL;
-        return d;
+        return NULL;
     }
     pQueueNode node = self->head;
-    Data data = node->d;
+    pData data = node->d;
+    node->d = NULL;
     self->head = self->head->next;
+    if (NULL == self->head) {
+        self->tail = NULL;
+    }
     free(node);
     return data;
 }
@@ -136,26 +138,6 @@ pQueue initQueue(){
     q->isNull = _queueisNull;
     q->free = _freeQueue;
     return q;
-}
-
-/**
- * 获取行号
- * self:自身
- * point:位置
- * return:行号
- * */
-int _getRow(pMaze self, int point){
-    return point/self->column;
-}
-
-/**
- * 获取列号
- * self:自身
- * point:位置
- * return:列号
- * */
-int _getColumn(pMaze self, int point){
-    return point % self->column;
 }
 
 /**
@@ -206,56 +188,50 @@ void _freeMaze(pMaze self){
 /**
  * 移动
  * self:自身
+ * q:队列
+ * r:行
+ * c:列
+ * direction:方向
+ * opposite:反方向
+ * condition:条件
+ * */
+void _moveMaze(pMaze self, pQueue q, 
+                                int r, int c, 
+                                int direction,int opposite, 
+                                int condition){
+    int point = _getPoint(self, r, c);
+    if (condition                                                                                       //初始条件
+        && 0 == (self->maze[point]&direction)                               //该方向没走过
+        && 0 == (self->maze[point]&opposite)                                   //新位置不到两条路
+        && WALK != self->maze[point]                                                    //不为墙
+        && START != self->maze[point]                                                   //不为开始
+        && END != self->maze[point]) {                                                  //不为结束
+            self->maze[point] |= direction;
+            pData d = (pData)malloc(sizeof(Data));
+            d->Integer = point;
+            q->offer(q, d);    
+    }
+}
+
+/**
+ * 移动
+ * self:自身
  * */
 void _runMaze(pMaze self){
     pQueue q = initQueue();
-    Data d;
-    d.Integer = self->end;
+    pData d = (pData)malloc(sizeof(Data));
+    d->Integer = self->end;
     q->offer(q, d);
     while(!q->isNull(q)){
-        int point = q->peek(q).Integer;
-        int r = _getRow(self, point);
-        int c = _getColumn(self, point);
-        if (r > 0 
-            && WALK != self->maze[_getPoint(self, r-1, c)]
-            && SOUTH != self->maze[_getPoint(self, r-1, c)&SOUTH]) {
-            Data d;
-            d.Integer = _getPoint(self, r-1, c);
-            if (START != self->maze[d.Integer]) {
-                self->maze[d.Integer] |= SOUTH;
-                q->offer(q, d);    
-            }
-        }
-        if (c>0 
-            && WALK != self->maze[_getPoint(self, r, c-1)]
-            && EAST != self->maze[_getPoint(self, r, c-1)]&EAST) {
-            Data d;
-            d.Integer = _getPoint(self, r, c-1);
-            if (START != self->maze[d.Integer]) {
-                self->maze[d.Integer] |= EAST;
-                q->offer(q, d);
-            }
-        }
-        if (r < self->row-1 
-            && WALK != self->maze[_getPoint(self, r+1, c)]
-            && NORTH != self->maze[_getPoint(self, r+1, c)]&NORTH) {
-            Data d;
-            d.Integer = _getPoint(self, r+1, c); 
-            if (START != self->maze[d.Integer]) {
-                self->maze[d.Integer] |= NORTH;
-                q->offer(q, d);
-            }
-        }
-        if (c < self->column-1 
-            && WALK != self->maze[_getPoint(self, r, c+1)]
-            && WEST != self->maze[_getPoint(self, r, c+1)]&WEST) {
-            Data d;
-            d.Integer = _getPoint(self, r, c+1); 
-            if (START != self->maze[d.Integer]) {
-                self->maze[d.Integer] |= WEST;
-                q->offer(q, d);
-            }
-        }
+        d = q->peek(q);
+        int point = d->Integer;
+        free(d);
+        int r = point / self->column;
+        int c = point % self->column;
+        _moveMaze(self, q, r-1, c, SOUTH, NORTH, r>0);
+        _moveMaze(self, q, r, c-1, EAST, WEST, c>0);
+        _moveMaze(self, q, r+1, c, NORTH, SOUTH, r<(self->row-1));
+        _moveMaze(self, q, r, c+1, WEST, EAST, c<(self->column-1));
     }    
 }
 
@@ -428,7 +404,9 @@ pMaze initMaze(int row, int column){
 int main(){
     pMaze maze = initMaze(20, 40);
     maze->generate(maze, time(NULL));
+    maze->print(maze);
     maze->run(maze);
+    printf("--------------------------------------------------------------------------------\n");
     maze->print(maze);
     return 0;
 }
