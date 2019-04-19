@@ -7,12 +7,12 @@
  * */
 typedef struct maze{
     int* maze;
-    int row;
-    int column;
-    int start;
-    int end;
+    unsigned int row;
+    unsigned int column;
+    unsigned int start;
+    unsigned int end;
     void (*print)(struct maze *);
-    void (*generate)(struct maze *, int);
+    void (*generate)(struct maze *, unsigned int);
     void (*save)(struct maze *, char *);
     void (*free)(struct maze *);
     void (*run)(struct maze *);
@@ -28,24 +28,49 @@ typedef union data
     long Long;
 }Data,* pData;
 /**
- * 队列节点
+ * 节点
  * */
-typedef struct queueNode{
+typedef struct node{
     pData d;
-    struct queueNode * last;
-    struct queueNode * next;
-}queueNode, *pQueueNode;
+    struct node * last;
+    struct node * next;
+}node, *pNode;
+/**
+ * 链表
+ * */
+typedef struct list
+{
+    pNode head;
+    int (*add)(struct list *, pData, unsigned int);
+    pData (*remove)(struct list *,unsigned int);
+    pData (*get)(struct list *, unsigned int);
+    unsigned int (*size)(struct list *);
+    void (*foreach)(struct list *, void (*consumer)(pData));
+    int (*isNull)(struct list *);
+    void (*free)(struct list *);
+}list, *pList;
 /**
  * 队列
  * */
 typedef struct queue{
-    pQueueNode head;
-    pQueueNode tail;
+    pList list;
+    pNode tail;
     int (*offer)(struct queue *, pData);
     pData (*peek)(struct queue *);
-    void (*free)(struct queue *);
     int (*isNull)(struct queue *);
+    void (*free)(struct queue *);
 }queue, *pQueue;
+/**
+ * 堆栈
+ * */
+typedef struct stack
+{
+    pList list;
+    pData (*pop)(struct stack*);
+    void (*push)(struct stack *,pData);
+    void (*free)(struct stack *);
+}stack, *pStack;
+
 
 int EAST = 1;
 int SOUTH = 1<<1;
@@ -65,79 +90,256 @@ char* show[] = {
 };
 
 /**
- * 入队
- * self:自身
- * data:入队的数据
+ * 添加元素
+ * data:添加的数据
+ * index:索引，从0开始
  * return：是否失败
  * */
-int _enQueue(pQueue self, pData data){
-    if (NULL == self) {
+int _list_add(pList self, pData data, unsigned int index){
+    pNode node = (pNode)malloc(sizeof(node));
+    node->d = data;
+    if (0 == index) {
+        node->last = NULL;
+        node->next = self->head;
+        self->head = node;
+        return 0;
+    }
+    pNode p = self->head;
+    if(NULL == p){
         return 1;
     }
-    pQueueNode node = (pQueueNode)malloc(sizeof(queueNode));
-    node->d = data;
-    node->last = self->tail;
-    node->next = NULL;
-    if (NULL != self->tail) {
-        self->tail->next = node;
+    int i = 0;
+    while(NULL != p->next){
+        if (index == (++i)) {
+            break;
+        }
+        p = p->next;
     }
-    self->tail = node;
-    if (NULL == self->head) {
-        self->head = node;
+    if (index != i) {
+        return 1;
+    }
+    if (NULL != p->next) {
+        p->next->last = node;
+    }
+    node->next = p->next;
+    p->next = node;
+    node->last = p;
+    return 0;
+}
+
+/**
+ * 删除元素
+ * index:索引，从0开始
+ * return:删除的值，为NULL表示失败;
+ * */
+pData _list_remove(pList self, unsigned int index){
+    if (NULL == self || NULL == self->head) {
+        return NULL;
+    }
+    if (0 == index) {
+        pNode n = self->head;
+        self->head = n->next;
+        self->head->last = NULL;
+        pData d = n->d;
+        n->d = NULL;
+        n->next = NULL;
+        free(n);
+        return d;
+    }
+    pNode p = self->head->next;
+    int i = 0;
+    while(NULL != p){
+        if (index == (++i)) {
+            pData d = p->d;
+            if (NULL != p->next) {
+                p->next->last = p->last;
+            }
+            p->last->next = p->next;
+            p->last = NULL;
+            p->next = NULL;
+            p->d = NULL;
+            return d;
+        }
+    }
+    return NULL;
+}
+
+/**
+ * 获取数据
+ * index:索引，从0开始
+ * return:该索引的值，为NULL表示越界
+ * */
+pData _list_get(pList list, unsigned int index){
+    int i = 0;
+    pNode p = list->head;
+    while(NULL != p){
+        if(index == (i++)){
+            return p->d;
+        }
+        p=p->next;
+    }
+    return NULL;
+}
+
+/**
+ * 获取链表节点的数量
+ * return:节点的数量
+ * */
+unsigned int _list_size(pList self){
+    unsigned int size = 0;
+    pNode p = self->head;
+    while(NULL != p){
+        size++;
+        p = p->next;
+    }
+    return size;
+}
+
+/**
+ * 遍历链表
+ * consumer:消费者函数，即遍历链表每个元素做的事
+ * */
+void _list_foreach(pList self, void (*consumer)(pData)){
+    pNode n = self->head;
+    while(NULL != n){
+        consumer(n->d);
+        n = n->next;
+    }
+}
+
+/**
+ * 链表是否为空
+ * return:为空返回1,不为空返回0
+ * */
+int _list_isNull(pList self){
+    return self->head == NULL;
+}
+
+/**
+ * 删除链表
+ * */
+void _list_free(pList self){
+    while(NULL != self->remove(self, 0));
+    free(self);
+}
+
+/**
+ * 初始化链表
+ * return:初始化的链表
+ * */
+pList initList(){
+    pList l = (pList)malloc(sizeof(list));
+    l->head = NULL;
+    l->add = _list_add;
+    l->remove = _list_remove;
+    l->get = _list_get;
+    l->size = _list_size;
+    l->foreach = _list_foreach;
+    l->isNull = _list_isNull;
+    l->free = _list_free;
+    return l;
+}
+
+/**
+ * 入队
+ * d:入队的数据
+ * */
+int _queue_offer(pQueue self, pData d){
+    self->list->add(self->list, d, 0);
+    if (1 == self->list->size(self->list)) {
+        self->tail = self->list->head;
     }
     return 0;
 }
 
 /**
  * 出队
- * self:自身
- * return:出队的值，为NULL表示失败;
+ * return:出队的数据
  * */
-pData _outQueue(pQueue self){
-    if (NULL == self || NULL == self->head) {
-        return NULL;
-    }
-    pQueueNode node = self->head;
+pData _queue_peek(pQueue self){
+    pNode node = self->list->head;
     pData data = node->d;
     node->d = NULL;
-    self->head = self->head->next;
-    if (NULL == self->head) {
+    self->list->head = self->list->head->next;
+    if (NULL == self->list->head) {
         self->tail = NULL;
     }
     free(node);
-    return data;
-}
+    return data;}
 
 /**
  * 队列是否为空
- * self:自身
  * return:为空返回1,不为空返回0
  * */
-int _queueisNull(pQueue self){
-    return self->head == NULL;
+int _queue_isNull(pQueue self){
+    return self->list->isNull(self->list);
 }
 
-/**
- * 删除队列
- * self:自身
- * */
-void _freeQueue(pQueue self){
-    while(NULL != self->peek);
+void _queue_free(pQueue self){
+    self->list->free(self->list);
     free(self);
 }
 
 /**
  * 初始化队列
+ * return:初始化的队列
  * */
 pQueue initQueue(){
     pQueue q = (pQueue)malloc(sizeof(queue));
-    q->head = NULL;
+    q->list = initList();
     q->tail = NULL;
-    q->offer = _enQueue;
-    q->peek = _outQueue;
-    q->isNull = _queueisNull;
-    q->free = _freeQueue;
+    q->offer = _queue_offer;
+    q->peek = _queue_peek;
+    q->isNull = _queue_isNull;
+    q->free = _queue_free;
     return q;
+}
+
+/**
+ * 压栈
+ * data:数据
+ * */
+void _pushStack(pStack self, pData data){
+    self->list->add(self->list, data, 0);
+}
+
+/**
+ * 弹栈
+ * return:弹出的数据
+ * */
+pData _popStack(pStack self){
+    pNode n = self->list->head;
+    if (NULL == n) {
+        return NULL;
+    }    
+    self->list->head = n->next;
+    self->list->head->last = NULL;
+    pData d = n->d;
+    n->d = NULL;
+    n->last = NULL;
+    n->next = NULL;
+    free(n);
+    return d;
+}
+
+/**
+ * 删除堆栈
+ * */
+void _freeStack(pStack self){
+    self->list->free(self->list);
+    free(self);
+}
+
+/**
+ * 初始化堆栈
+ * */
+pStack initStack(){
+    pStack s = (pStack)malloc(sizeof(stack));
+    s->list = initList();
+    s->pop = _popStack;
+    s->push = _pushStack;
+    s->free = _freeStack;
+    return s;
 }
 
 /**
@@ -152,7 +354,6 @@ int _getPoint(pMaze self, int row, int column){
 
 /**
  * 获取位置信息
- * self:自身
  * row:行
  * column:列
  * return:该位置的代码，参考全局变量show
@@ -163,7 +364,6 @@ int _getByXY(pMaze self, int row, int column){
 
 /**
  * 输出
- * self:自身
  * */
 void _print(pMaze self){
     for(int i = 0; i < self->row; i++)
@@ -178,7 +378,6 @@ void _print(pMaze self){
 
 /**
  * 删除迷宫
- * self:自身
  * */
 void _freeMaze(pMaze self){
     free(self->maze);
@@ -187,7 +386,6 @@ void _freeMaze(pMaze self){
 
 /**
  * 移动
- * self:自身
  * q:队列
  * r:行
  * c:列
@@ -215,7 +413,6 @@ void _moveMaze(pMaze self, pQueue q,
 
 /**
  * 移动
- * self:自身
  * */
 void _runMaze(pMaze self){
     pQueue q = initQueue();
@@ -237,10 +434,9 @@ void _runMaze(pMaze self){
 
 /**
  * 生成路径
- * self:自身
  * seed:种子
  * */
-void _generateRoad(pMaze self, int seed){
+void _generateRoad(pMaze self, unsigned int seed){
     int size = self->column*self->row;
     int r = (self->row>>1)+(self->row>>2)+(self->row>>4);
     int c = (self->column>>1)+(self->column>>2)+(self->column>>4);
@@ -327,7 +523,6 @@ void _generateRoad(pMaze self, int seed){
 
 /**
  * 保存到文件
- * self:自身
  * fileName:要保存的文件名
  * */
 void _saveToFile(pMaze self, char* fileName){
@@ -377,7 +572,7 @@ pMaze initMazeByFile(char *fileName){
  * column:列数
  * return:初始化的迷宫
  * */
-pMaze initMaze(int row, int column){
+pMaze initMaze(unsigned int row, unsigned int column){
     pMaze ret = (pMaze)malloc(sizeof(maze));
     ret->row = row;
     ret->column = column;
