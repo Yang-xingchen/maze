@@ -72,14 +72,14 @@ typedef struct stack
 }stack, *pStack;
 
 
-int EAST = 1;
-int SOUTH = 1<<1;
-int WEST = 1<<2;
-int NORTH = 1<<3;
-int WALK = 16;
-int ROAD = 0;
-int START = 17;
-int END = 18;
+#define EAST  1
+#define SOUTH  (1<<1)
+#define WEST  (1<<2)
+#define NORTH  (1<<3)
+#define WALK  16
+#define ROAD  0
+#define START  17
+#define END  18
 
 char* show[] = {
     "  ", "→ ", "↓ ", "↘ ",
@@ -313,7 +313,9 @@ pData _popStack(pStack self){
         return NULL;
     }    
     self->list->head = n->next;
-    self->list->head->last = NULL;
+    if (NULL != self->list->head) {
+        self->list->head->last = NULL;
+    }
     pData d = n->d;
     n->d = NULL;
     n->last = NULL;
@@ -437,88 +439,62 @@ void _runMaze(pMaze self){
  * seed:种子
  * */
 void _generateRoad(pMaze self, unsigned int seed){
-    int size = self->column*self->row;
-    int r = (self->row>>1)+(self->row>>2)+(self->row>>4);
-    int c = (self->column>>1)+(self->column>>2)+(self->column>>4);
     srand(seed);
-    while(r>0 && c>0) {
-        if (r>0) {
-            int row;
-            int startColumn;
-            do
-            {
-                row = rand()%self->row;
-                startColumn = rand()%self->column;
-            } while (ROAD==_getByXY(self, row+1, startColumn) 
-                || ROAD == _getByXY(self, row>0?row:(self->row-1), startColumn));            
-            int l = rand()%(self->column>>1)+(self->column>>2);
-            for(int j = 0; j < l; j++)
-            {
-                int stop = 0;
-                int point = _getPoint(self, row, startColumn+j);
-                while(ROAD == self->maze[point]){
-                    if (!rand()&3) {
-                        break;
-                    }
-                    if (!rand()&3) {
-                        stop = 1;
-                    }                    
-                    row = rand()%self->row;
-                    startColumn = rand()%self->column;
-                    point = _getPoint(self, row, startColumn+j);
-                }            
-                self->maze[point] = ROAD;
-            }
-            r--;
+    int roadSize = ((self->row+self->column)<<2);
+    int point = rand() % (self->row * self->column);
+    self->start = point;
+    int generateRoadSize = 0;
+    int r, c, l;
+    while(generateRoadSize < roadSize){
+        r = point / self->column;
+        c = point % self->column;
+        int direction = 1<<(rand()&2);
+        if (NORTH == direction || SOUTH == direction){
+            l = (self->row >> 3 > 0) 
+                        ? rand()%(self->row>>3) 
+                        : rand()%(self->row>>1);
+        }else {
+            l = (self->column >> 3 > 0) 
+                        ? rand()%(self->column>>3) 
+                        : rand()%(self->column>>1);
         }
-        if (c>0) {
-            int column;
-            int startRow;
-            do
-            {
-                column = rand()%self->column;
-                startRow = rand()%self->row;
-            } while (ROAD == _getByXY(self, startRow, column+1) 
-                || ROAD == _getByXY(self, startRow, column>0?column:(self->column-1)));
-            int l = rand()%(self->row>>1)+self->row>>2;
-            for(int j = 0; j < l; j++)
-            {
-                int stop = 0;
-                int point = _getPoint(self, startRow+j, column);
-                while(ROAD == self->maze[point]){
-                    if (!rand()&3) {
-                        break;
-                    }
-                    if (!rand()&3) {
-                        stop = 1;
-                    }                    
-                    column = rand()%self->column;
-                    startRow = rand()%self->row;
-                    point = _getPoint(self, startRow+j, column);
-                }            
-                self->maze[point] = ROAD;
+        for(int i = 0; i < l; i++) {
+            while(WALK != self->maze[point]){
+                if (rand()&1) {
+                    break;
+                }
+                point = rand()%(self->row * self->column);
+                r = point / self->column;
+                c = point % self->column;
+                direction = 1<<(rand()&3);
             }
-            c--;  
-        }      
+            self->maze[point] = ROAD;
+            switch (direction) {
+                case NORTH:
+                    r--;
+                    break;
+                case SOUTH:
+                    r++;
+                    break;
+                case EAST:
+                    c--;
+                    break;
+                case WEST:
+                    c++;
+                    break;
+            }
+            point = _getPoint(self, r, c);
+        }
+        if (rand()&3) {
+            point = rand()%(self->row * self->column);
+        } else {
+            point = _getPoint(self, r, c);
+        }
+        generateRoadSize++;
     }
-    while(1){
-        int r = rand()%self->row;
-        int c = rand()%self->column;
-        if (ROAD == _getByXY(self, r, c)) {
-            self->maze[_getPoint(self, r, c)] = START;
-            self->start = _getPoint(self, r, c);
-            break;
-        }        
-    }    
-    while(1){
-        int r = rand()%self->row;
-        int c = rand()%self->column;
-        if (ROAD == _getByXY(self, r, c)) {
-            self->maze[_getPoint(self, r, c)] = END;
-            self->end = _getPoint(self, r, c);
-            break;
-        }        
-    }    
+    self->end = _getPoint(self, r, c);
+    self->maze[self->end] = END;
+    self->maze[self->start] = START;
 }
 
 /**
