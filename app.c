@@ -139,7 +139,9 @@ pData _list_remove(pList self, unsigned int index){
     if (0 == index) {
         pNode n = self->head;
         self->head = n->next;
-        self->head->last = NULL;
+        if (NULL != self->head) {
+            self->head->last = NULL;
+        }
         pData d = n->d;
         n->d = NULL;
         n->next = NULL;
@@ -245,9 +247,16 @@ pList initList(){
  * d:入队的数据
  * */
 int _queue_offer(pQueue self, pData d){
-    self->list->add(self->list, d, 0);
-    if (1 == self->list->size(self->list)) {
-        self->tail = self->list->head;
+    pNode n = (pNode)malloc(sizeof(node));
+    n->d = d;
+    n->next = NULL;
+    n->last = self->tail;
+    if (NULL != self->tail) {
+        self->tail->next = n;
+    }
+    self->tail = n;
+    if (NULL == self->list->head) {
+        self->list->head = n;
     }
     return 0;
 }
@@ -257,15 +266,8 @@ int _queue_offer(pQueue self, pData d){
  * return:出队的数据
  * */
 pData _queue_peek(pQueue self){
-    pNode node = self->list->head;
-    pData data = node->d;
-    node->d = NULL;
-    self->list->head = self->list->head->next;
-    if (NULL == self->list->head) {
-        self->tail = NULL;
-    }
-    free(node);
-    return data;}
+    return self->list->remove(self->list, 0);
+}
 
 /**
  * 队列是否为空
@@ -372,7 +374,7 @@ void _print(pMaze self){
     {
         for(int j = 0; j < self->column; j++)
         {
-            printf(show[_getByXY(self, i ,j)]);
+            printf(show[_getByXY(self, i ,j)&0x1F]);
         }
         printf("\n");
     }    
@@ -407,7 +409,7 @@ void _moveMaze(pMaze self, pQueue q,
         && START != self->maze[point]                                                   //不为开始
         && END != self->maze[point]) {                                                  //不为结束
             self->maze[point] |= direction;
-            self->maze[point] |= 1<<5;
+            self->maze[point] |= 1<<6;
             pData d = (pData)malloc(sizeof(Data));
             d->Integer = point;
             q->offer(q, d);    
@@ -422,9 +424,9 @@ void _moveMaze(pMaze self, pQueue q,
  * np:方向位置
  * */
 void _removeFlag(pMaze self, pQueue q, int direction, int p, int np){
-    if (0 != (self->maze[np] & 1<<5) 
+    if (0 != (self->maze[np] & 1<<6) 
         && (direction == (self->maze[p]&direction) || START == self->maze[p])) {
-            self->maze[np] &= ~(1<<5);
+            self->maze[np] &= ~(1<<6);
             pData d = (pData)malloc(sizeof(Data));
             d->Integer = np;
             q->offer(q, d);
@@ -445,9 +447,9 @@ void _runMaze(pMaze self){
         free(d);
         int r = point / self->column;
         int c = point % self->column;
-        _moveMaze(self, q, r-1, c, SOUTH, NORTH, r>0);
-        _moveMaze(self, q, r, c-1, EAST, WEST, c>0);
         _moveMaze(self, q, r+1, c, NORTH, SOUTH, r<(self->row-1));
+        _moveMaze(self, q, r, c-1, EAST, WEST, c>0);
+        _moveMaze(self, q, r-1, c, SOUTH, NORTH, r>0);
         _moveMaze(self, q, r, c+1, WEST, EAST, c<(self->column-1));
     }    
     d = (pData)malloc(sizeof(Data));
@@ -470,7 +472,7 @@ void _runMaze(pMaze self){
         for(int j = 0; j < self->column; j++)
         {
             int p = _getPoint(self, i, j);
-            if (0 != (self->maze[p] & 1<<5)) {
+            if (0 != (self->maze[p] & 1<<6)) {
                 self->maze[p] = ROAD;
             }
         }
