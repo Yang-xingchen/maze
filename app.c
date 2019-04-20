@@ -83,9 +83,9 @@ typedef struct stack
 
 char* show[] = {
     "  ", "→ ", "↓ ", "↘ ",
-    "← ", "↔ ", "↙ ", "err",
-    "↑ ", "↗ ", "↕ ", "err",
-    "↖ ","err","err","err",
+    "← ", "↔ ", "↙ ", "er",
+    "↑ ", "↗ ", "↕ ", "er",
+    "↖ ","er","er","er",
     "⬛","S ","E "
 };
 
@@ -372,7 +372,7 @@ void _print(pMaze self){
     {
         for(int j = 0; j < self->column; j++)
         {
-            printf(show[_getByXY(self, i ,j)%19]);
+            printf(show[_getByXY(self, i ,j)]);
         }
         printf("\n");
     }    
@@ -407,9 +407,27 @@ void _moveMaze(pMaze self, pQueue q,
         && START != self->maze[point]                                                   //不为开始
         && END != self->maze[point]) {                                                  //不为结束
             self->maze[point] |= direction;
+            self->maze[point] |= 1<<5;
             pData d = (pData)malloc(sizeof(Data));
             d->Integer = point;
             q->offer(q, d);    
+    }
+}
+
+/**
+ * 清除标记
+ * q:队列
+ * direction:方向
+ * p:当前位置
+ * np:方向位置
+ * */
+void _removeFlag(pMaze self, pQueue q, int direction, int p, int np){
+    if (0 != (self->maze[np] & 1<<5) 
+        && (direction == (self->maze[p]&direction) || START == self->maze[p])) {
+            self->maze[np] &= ~(1<<5);
+            pData d = (pData)malloc(sizeof(Data));
+            d->Integer = np;
+            q->offer(q, d);
     }
 }
 
@@ -431,6 +449,31 @@ void _runMaze(pMaze self){
         _moveMaze(self, q, r, c-1, EAST, WEST, c>0);
         _moveMaze(self, q, r+1, c, NORTH, SOUTH, r<(self->row-1));
         _moveMaze(self, q, r, c+1, WEST, EAST, c<(self->column-1));
+    }    
+    d = (pData)malloc(sizeof(Data));
+    d->Integer = self->start;
+    q->offer(q, d);
+    while(!q->isNull(q)){
+        d = q->peek(q);
+        int point = d->Integer;
+        free(d);
+        int r = point / self->column;
+        int c = point % self->column;
+        _removeFlag(self, q, NORTH, point, _getPoint(self, r-1, c));
+        _removeFlag(self, q, WEST, point, _getPoint(self, r, c-1));
+        _removeFlag(self, q, SOUTH, point, _getPoint(self, r+1, c));
+        _removeFlag(self, q, EAST, point, _getPoint(self, r, c+1));
+    }
+    q->free(q);
+    for(int i = 0; i < self->row; i++)
+    {
+        for(int j = 0; j < self->column; j++)
+        {
+            int p = _getPoint(self, i, j);
+            if (0 != (self->maze[p] & 1<<5)) {
+                self->maze[p] = ROAD;
+            }
+        }
     }    
 }
 
