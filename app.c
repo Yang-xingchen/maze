@@ -160,6 +160,7 @@ pData _list_remove(pList self, unsigned int index){
             p->last = NULL;
             p->next = NULL;
             p->d = NULL;
+            free(p);
             return d;
         }
     }
@@ -266,6 +267,9 @@ int _queue_offer(pQueue self, pData d){
  * return:出队的数据
  * */
 pData _queue_peek(pQueue self){
+    if (1 == self->list->size(self->list)) {
+        self->tail = NULL;
+    }
     return self->list->remove(self->list, 0);
 }
 
@@ -391,23 +395,22 @@ void _freeMaze(pMaze self){
 /**
  * 移动
  * q:队列
- * r:行
- * c:列
+ * point:位置
  * direction:方向
  * opposite:反方向
  * condition:条件
  * */
 void _moveMaze(pMaze self, pQueue q, 
-                                int r, int c, 
+                                int point,int op,
                                 int direction,int opposite, 
                                 int condition){
-    int point = _getPoint(self, r, c);
-    if (condition                                                                                       //初始条件
-        && 0 == (self->maze[point]&direction)                               //该方向没走过
-        && 0 == (self->maze[point]&opposite)                                   //新位置不到两条路
-        && WALK != self->maze[point]                                                    //不为墙
-        && START != self->maze[point]                                                   //不为开始
-        && END != self->maze[point]) {                                                  //不为结束
+    if (condition                                                                                                               //初始条件
+        && (0 == (self->maze[op] & opposite) || END == self->maze[op])      //不走原方向
+        && 0 == (self->maze[point]&direction)                                                     //该方向没走过
+        // && 0 == (self->maze[point]&opposite)                                                         //新位置不到两条路
+        && WALK != self->maze[point]                                                                          //不为墙
+        && START != self->maze[point]                                                                         //不为开始
+        && END != self->maze[point]) {                                                                        //不为结束
             self->maze[point] |= direction;
             self->maze[point] |= 1<<6;
             pData d = (pData)malloc(sizeof(Data));
@@ -447,11 +450,11 @@ void _runMaze(pMaze self){
         free(d);
         int r = point / self->column;
         int c = point % self->column;
-        _moveMaze(self, q, r+1, c, NORTH, SOUTH, r<(self->row-1));
-        _moveMaze(self, q, r, c-1, EAST, WEST, c>0);
-        _moveMaze(self, q, r-1, c, SOUTH, NORTH, r>0);
-        _moveMaze(self, q, r, c+1, WEST, EAST, c<(self->column-1));
-    }    
+        _moveMaze(self, q, _getPoint(self, r+1, c), point, NORTH, SOUTH, r<(self->row-1));
+        _moveMaze(self, q, _getPoint(self, r, c-1), point, EAST, WEST, c>0);
+        _moveMaze(self, q, _getPoint(self, r-1, c), point, SOUTH, NORTH, r>0);
+        _moveMaze(self, q, _getPoint(self, r, c+1), point, WEST, EAST, c<(self->column-1));
+    }
     d = (pData)malloc(sizeof(Data));
     d->Integer = self->start;
     q->offer(q, d);
