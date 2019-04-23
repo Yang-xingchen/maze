@@ -611,14 +611,140 @@ pMaze initMaze(unsigned int row, unsigned int column) {
 }
 
 /**
+ * 随机生成迷宫菜单
+ * */
+pMaze _randomMazeMenu() {
+    int r = 0;
+    int c = 0;
+    printf("                              ==== 随机生成 ====\n");
+    while(r <= 0) {
+        printf("请输入行数:");
+        scanf("%d", &r);
+    }
+    while(c <= 0) {
+        printf("请输入列数:");
+        scanf("%d", &c);
+    }
+    pMaze maze = initMaze(r, c);
+    printf("请输入种子(留空则为随机种子):");
+    char * seedChar = (char*)malloc(sizeof(char)*128);
+    scanf("%s", seedChar);
+    while('\n' != seedChar[0] && '\n'!=getchar());
+    int seed = 0;
+    if ('\0' == seedChar[0]) {
+        seed = time(NULL);
+    } else {
+        int i = 0;
+        while('\0'!= seedChar[i]){
+            seed = seed*10 + seedChar[i] - '0';
+            i++;
+        }
+    }
+    free(seedChar);
+    maze->generate(maze, seed);
+    printf("种子为:%d的迷宫为:\n", seed);
+    maze->print(maze);
+    char in='\0';
+    while(in == '\0') {
+        printf("请选择:\n");
+        printf("1.开始移动(默认)\n");
+        printf("2.保存到文件\n");
+        printf("3.重新生成\n");
+        in = getchar();
+        while('\n' != in && '\n'!=getchar());
+        switch (in) {
+            case '\n':
+            case '1':
+                return maze;
+            case '2':
+                printf("请输入文件名:");
+                char* fileName = (char*)malloc(sizeof(char)*64);
+                scanf("%s", fileName);
+                while('\n'!=getchar());
+                maze->save(maze, fileName);
+                printf("保存成功!\n");
+                in = '\0';
+                break;
+            case '3':
+                return _randomMazeMenu();
+            default:
+                printf("输入错误，请选择正确的选项!\n");
+                in = '\0';
+                break;
+        }
+    }
+}
+
+/**
+ * 文件输入迷宫菜单
+ * */
+pMaze _fileMazeMenu() {
+    printf("请输入文件名:");
+    char* fileName = (char *)malloc(sizeof(char)*64);
+    scanf("%s", fileName);
+    while('\n'!=getchar());
+    pMaze maze = initMazeByFile(fileName);
+    free(fileName);
+    printf("当前迷宫为:\n");
+    maze->print(maze);
+    char in = '\0';
+    while('\0' == in){
+        printf("是否确认？(Y/n):");
+        in = getchar();
+        while('\n' != in && '\n'!=getchar());
+        if ('n' == in || 'N' == in) {
+            return _fileMazeMenu();
+        } else if('Y' == in ||'y' == in || '\n' == in){
+            return maze;
+        } else {
+            printf("输入错误，请选择正确的选项\n");
+            in = '\0';
+        }
+    }
+}
+
+/**
+ * 菜单
+ * */
+void menu() {
+    printf("                              ==== 迷宫问题 ====\n");
+    printf("1.随机生成迷宫\n");
+    printf("2.文件读取迷宫\n");
+    printf("0.退出\n");
+    char in = getchar();
+    while('\n' != in && '\n'!=getchar());
+    pMaze maze = NULL;
+    switch (in) {
+        case '1':
+            maze = _randomMazeMenu();
+            break;
+        case '2':
+            maze = _fileMazeMenu();
+            break;
+        case '0':
+            return;
+        default:
+            printf("输入错误，请选择正确的选项\n");
+            menu();
+            return;
+    }
+    if (NULL == maze) {
+        menu();
+        return;
+    }
+    maze->run(maze);
+    printf("结果为:\n");
+    maze->print(maze);
+    printf("按下回车键返回主菜单\n");
+    getchar();
+    maze->free(maze);
+    menu();
+}
+
+/**
  * 主方法
  * */
 int main() {
-    pMaze maze = initMaze(20, 40);
-    maze->generate(maze, time(NULL));
-    maze->print(maze);
-    maze->run(maze);
-    printf("--------------------------------------------------------------------------------\n");
-    maze->print(maze);
+    menu();
     return 0;
 }
