@@ -479,66 +479,18 @@ void _maze_run(pMaze self) {
 void _maze_generateRoad(pMaze self, unsigned int seed) {
     srand(seed);
     int size = self->row * self->column ;
-    if (0 == self->row>>4 || 0 == self->column>>4) {
-        for(int i = (size>>1)-(size>>2); i < size; i++) {
-            self->maze[rand()%size] = ROAD;
-        }
-        do {
-            self->start = rand()%size;
-        } while(WALK != self->maze[self->start]);
-        self->maze[self->start] = START;
-        do {
-            self->end = rand()%size;
-        } while(WALK != self->maze[self->end]);
-        self->maze[self->end] = END;
-        return;
+    for(int i = size>>3; i < size; i++) {
+        self->maze[rand()%size] = ROAD;
     }
-    int roadSize = ((self->row+self->column)<<2);
-    int point = rand() % size;
-    self->start = point;
-    int generateRoadSize = 0;
-    int r, c, l;
-    while(generateRoadSize < roadSize) {
-        r = point / self->column;
-        c = point % self->column;
-        int direction = 1<<(rand()&2);
-        if (NORTH == direction || SOUTH == direction) {
-            l = rand()%(self->row>>3) ;
-        } else {
-            l = rand()%(self->column>>3);
-        }
-        for(int i = 0; i < l; i++) {
-            while(WALK != self->maze[point]) {
-                if (rand()&1) {
-                    break;
-                }
-                point = rand()%size;
-                r = point / self->column;
-                c = point % self->column;
-                direction = 1<<(rand()&3);
-            }
-            self->maze[point] = ROAD;
-            if ( NORTH == direction) {
-                r--;
-            } else if (SOUTH == direction) {
-                r++;
-            } else if (EAST == direction) {
-                c--;
-            } else if (WEST == direction) {
-                c++;
-            }
-            point = __maze_getPoint(self, r, c);
-        }
-        if (rand()&3) {
-            point = rand()%size;
-        } else {
-            point = __maze_getPoint(self, r, c);
-        }
-        generateRoadSize++;
-    }
-    self->end = __maze_getPoint(self, r, c);
-    self->maze[self->end] = END;
+    do {
+        self->start = rand()%size;
+    } while(WALK != self->maze[self->start]);
     self->maze[self->start] = START;
+    do {
+        self->end = rand()%size;
+    } while(WALK != self->maze[self->end]);
+    self->maze[self->end] = END;
+    return;
 }
 
 /**
