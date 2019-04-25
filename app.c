@@ -485,11 +485,11 @@ void _maze_generateRoad(pMaze self, unsigned int seed) {
         }
         do {
             self->start = rand()%size;
-        } while (WALK != self->maze[self->start]);
+        } while(WALK != self->maze[self->start]);
         self->maze[self->start] = START;
         do {
             self->end = rand()%size;
-        } while (WALK != self->maze[self->end]);
+        } while(WALK != self->maze[self->end]);
         self->maze[self->end] = END;
         return;
     }
@@ -611,6 +611,43 @@ pMaze initMaze(unsigned int row, unsigned int column) {
 }
 
 /**
+ * 获取种子
+ * */
+int __getSeed(){
+    int i = 0;
+    char ch = getchar();
+    if ('\n' == ch) {
+        return time(NULL);
+    }
+    char *in = (char *)malloc(sizeof(char) * 128);
+    int seed = ch >= '0' && ch <= '9' ? ch - '0' : 0;
+    int isNum = ch >= '0' && ch < '9' || ch == '-';
+    in[0] = ch;
+    for(int i = 1; i < 128; i++) {
+        ch = getchar();
+        if ('\n' == ch) {
+            in[i] = '\0';
+            break;
+        }
+        isNum = isNum && ch >= '0' && ch <='9';
+        in[i] = ch;
+        seed = seed * 10 + ch -'0';
+    }
+    if (!isNum) {
+        int i = 0;
+        seed = 0;
+        while('\0' != in[i]){
+            seed ^= in[i] << ((3*i)%(8*sizeof(int)));
+            i++;
+        }
+    } else if ('-' == in[0]){
+        seed *= -1;
+    }
+    free(in);
+    return seed;
+}
+
+/**
  * 随机生成迷宫菜单
  * */
 pMaze _randomMazeMenu() {
@@ -625,22 +662,10 @@ pMaze _randomMazeMenu() {
         printf("请输入列数:");
         scanf("%d", &c);
     }
+    getchar();
     pMaze maze = initMaze(r, c);
     printf("请输入种子(留空则为随机种子):");
-    char * seedChar = (char*)malloc(sizeof(char)*128);
-    scanf("%s", seedChar);
-    while('\n' != seedChar[0] && '\n'!=getchar());
-    int seed = 0;
-    if ('\0' == seedChar[0]) {
-        seed = time(NULL);
-    } else {
-        int i = 0;
-        while('\0'!= seedChar[i]){
-            seed = seed*10 + seedChar[i] - '0';
-            i++;
-        }
-    }
-    free(seedChar);
+    int seed = __getSeed();
     maze->generate(maze, seed);
     printf("种子为:%d的迷宫为:\n", seed);
     maze->print(maze);
@@ -688,13 +713,13 @@ pMaze _fileMazeMenu() {
     printf("当前迷宫为:\n");
     maze->print(maze);
     char in = '\0';
-    while('\0' == in){
+    while('\0' == in) {
         printf("是否确认？(Y/n):");
         in = getchar();
         while('\n' != in && '\n'!=getchar());
         if ('n' == in || 'N' == in) {
             return _fileMazeMenu();
-        } else if('Y' == in ||'y' == in || '\n' == in){
+        } else if ('Y' == in ||'y' == in || '\n' == in) {
             return maze;
         } else {
             printf("输入错误，请选择正确的选项\n");
@@ -736,7 +761,7 @@ void menu() {
     printf("结果为:\n");
     maze->print(maze);
     printf("按下回车键返回主菜单\n");
-    getchar();
+    while('\n' != getchar());
     maze->free(maze);
     menu();
 }
