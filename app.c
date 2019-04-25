@@ -68,22 +68,22 @@ typedef struct stack {
     void (*free)(struct stack *);
 }stack, *pStack;
 
-#define EAST  1
-#define SOUTH  (1<<1)
-#define WEST  (1<<2)
-#define NORTH  (1<<3)
-#define WALK  16
-#define ROAD  0
-#define START  17
-#define END  18
-#define FLAG (1<<7)
+#define EAST    0b000001
+#define SOUTH   0b000010
+#define WEST    0b000100
+#define NORTH   0b001000
+#define WALK    0b010000
+#define ROAD    0b000000
+#define START   0b010001
+#define END     0b010010
+#define FLAG    0b100000
 
 char* show[] = {
     "  ", "→ ", "↓ ", "↘ ",
     "← ", "↔ ", "↙ ", "er",
     "↑ ", "↗ ", "↕ ", "er",
-    "↖ ","er","er","er",
-    "⬛","S ","E "
+    "↖ ", "er", "er", "er",
+    "⬛", "S ", "E "
 };
 
 /**
@@ -393,12 +393,12 @@ void __maze_move(pMaze self, pQueue q,
                                 int point,int op,
                                 int direction,int opposite, 
                                 int condition) {
-    if (condition                                                                                                               //初始条件
-        && (0 == (self->maze[op] & opposite) || END == self->maze[op])      //不走原方向
-        && 0 == (self->maze[point]&direction)                                                     //该方向没走过
-        && WALK != self->maze[point]                                                                          //不为墙
-        && START != self->maze[point]                                                                         //不为开始
-        && END != self->maze[point]) {                                                                        //不为结束
+    if (condition                                                       //初始条件
+        && (0 == (self->maze[op] & opposite) || END == self->maze[op])  //不走原方向
+        && 0 == (self->maze[point]&direction)                           //该方向没走过
+        && WALK != self->maze[point]                                    //不为墙
+        && START != self->maze[point]                                   //不为开始
+        && END != self->maze[point]) {                                  //不为结束
             if (ROAD == self->maze[point]) {
                 pData d = (pData)malloc(sizeof(Data));
                 d->Integer = point;
@@ -479,7 +479,7 @@ void _maze_run(pMaze self) {
 void _maze_generateRoad(pMaze self, unsigned int seed) {
     srand(seed);
     int size = self->row * self->column ;
-    for(int i = size>>3; i < size; i++) {
+    for(int i = size>>4; i < size; i++) {
         self->maze[rand()%size] = ROAD;
     }
     do {
