@@ -39,13 +39,13 @@ typedef struct node {
  * */
 typedef struct list {
     pNode head;
+    unsigned int size;
     int (*add)(struct list *, pData, unsigned int);
     pData (*remove)(struct list *,unsigned int);
     pData (*get)(struct list *, unsigned int);
-    unsigned int (*size)(struct list *);
     void (*foreach)(struct list *, void (*consumer)(pData));
     int (*isNull)(struct list *);
-    void (*free)(struct list *);
+    void (*free)(struct list *, void (*freeData)(pData));
 }list, *pList;
 /**
  * 队列
@@ -56,7 +56,7 @@ typedef struct queue {
     int (*offer)(struct queue *, pData);
     pData (*peek)(struct queue *);
     int (*isNull)(struct queue *);
-    void (*free)(struct queue *);
+    void (*free)(struct queue *, void (*freeData)(pData));
 }queue, *pQueue;
 /**
  * 堆栈
@@ -65,18 +65,20 @@ typedef struct stack {
     pList list;
     pData (*pop)(struct stack*);
     void (*push)(struct stack *,pData);
-    void (*free)(struct stack *);
+    void (*free)(struct stack *, void (*freeData)(pData));
 }stack, *pStack;
 
-#define EAST    0b000001
-#define SOUTH   0b000010
-#define WEST    0b000100
-#define NORTH   0b001000
-#define WALK    0b010000
-#define ROAD    0b000000
-#define START   0b010001
-#define END     0b010010
-#define FLAG    0b100000
+#define EAST            0b0000000000000001
+#define SOUTH           0b0000000000000010
+#define WEST            0b0000000000000100
+#define NORTH           0b0000000000001000
+
+#define ROAD            0b0000000000000000
+#define WALK            0b0000000000010000
+#define START           0b0000000000010001
+#define END             0b0000000000010010
+
+#define FLAG            0b0000000000100000
 
 char* show[] = {
     "  ", "→ ", "↓ ", "↘ ",
@@ -85,6 +87,46 @@ char* show[] = {
     "↖ ", "er", "er", "er",
     "⬛", "S ", "E "
 };
+
+/**
+ * 存在某位
+ * bitset:bitset
+ * bit:位
+ * return:是否存在
+ * */
+int __util_hasBit(unsigned int bitset, unsigned int bit){
+    return bit & bitset;
+}
+
+/**
+ * 基础数据释放
+ * data:释放的Data
+ * */
+void __Data_free(pData data){
+    free(data);
+}
+
+/**
+ * 包装Data
+ * integer:包装的int值
+ * return:创建的Data
+ * */
+pData toDataByInt(int integer){
+    pData d = (pData)malloc(sizeof(Data));
+    d->Integer = integer;
+    return d;
+}
+
+/**
+ * 包装一般对象
+ * object:包装的对象
+ * return:创建的Data
+ * */
+pData toDataByObject(void* object){
+    pData d = (pData)malloc(sizeof(Data));
+    d->Object = object;
+    return d;
+}
 
 /**
  * 添加元素
@@ -99,6 +141,7 @@ int _list_add(pList self, pData data, unsigned int index) {
         node->last = NULL;
         node->next = self->head;
         self->head = node;
+        self->size++;
         return 0;
     }
     pNode p = self->head;
@@ -121,6 +164,7 @@ int _list_add(pList self, pData data, unsigned int index) {
     node->next = p->next;
     p->next = node;
     node->last = p;
+    self->size++;
     return 0;
 }
 
@@ -143,6 +187,7 @@ pData _list_remove(pList self, unsigned int index) {
         n->d = NULL;
         n->next = NULL;
         free(n);
+        self->size--;
         return d;
     }
     pNode p = self->head->next;
@@ -158,6 +203,7 @@ pData _list_remove(pList self, unsigned int index) {
             p->next = NULL;
             p->d = NULL;
             free(p);
+            self->size--;
             return d;
         }
     }
@@ -179,20 +225,6 @@ pData _list_get(pList list, unsigned int index) {
         p=p->next;
     }
     return NULL;
-}
-
-/**
- * 获取链表节点的数量
- * return:节点的数量
- * */
-unsigned int _list_size(pList self) {
-    unsigned int size = 0;
-    pNode p = self->head;
-    while(NULL != p) {
-        size++;
-        p = p->next;
-    }
-    return size;
 }
 
 /**
@@ -218,9 +250,15 @@ int _list_isNull(pList self) {
 /**
  * 删除链表
  * */
-void _list_free(pList self) {
-    while(NULL != self->remove(self, 0));
+void _list_free(pList self, void (freeData)(pData data)) {
+    while (0 != self->size && NULL != self->head) {
+        freeData(self->remove(self, 0));
+    }
     free(self);
+}
+
+void __base_data_free(pData data){
+    free(data);
 }
 
 /**
@@ -229,11 +267,11 @@ void _list_free(pList self) {
  * */
 pList initList() {
     pList l = (pList)malloc(sizeof(list));
+    l->size = 0;
     l->head = NULL;
     l->add = _list_add;
     l->remove = _list_remove;
     l->get = _list_get;
-    l->size = _list_size;
     l->foreach = _list_foreach;
     l->isNull = _list_isNull;
     l->free = _list_free;
@@ -264,7 +302,7 @@ int _queue_offer(pQueue self, pData d) {
  * return:出队的数据
  * */
 pData _queue_peek(pQueue self) {
-    if (1 == self->list->size(self->list)) {
+    if (1 == self->list->size) {
         self->tail = NULL;
     }
     return self->list->remove(self->list, 0);
@@ -281,8 +319,8 @@ int _queue_isNull(pQueue self) {
 /**
  * 删除队列
  * */
-void _queue_free(pQueue self) {
-    self->list->free(self->list);
+void _queue_free(pQueue self, void (freeData)(pData data)) {
+    self->list->free(self->list, freeData);
     free(self);
 }
 
@@ -333,8 +371,8 @@ pData _stack_pop(pStack self) {
 /**
  * 删除堆栈
  * */
-void _stack_free(pStack self) {
-    self->list->free(self->list);
+void _stack_free(pStack self, void (freeData)(pData data)) {
+    self->list->free(self->list, freeData);
     free(self);
 }
 
@@ -366,7 +404,7 @@ int __maze_getPoint(pMaze self, int row, int column) {
 void _maze_show(pMaze self) {
     for(int i = 0; i < self->row; i++) {
         for(int j = 0; j < self->column; j++) {
-            printf(show[self->maze[__maze_getPoint(self, i, j)]&0x1F]);
+            printf(show[self->maze[__maze_getPoint(self, i, j)]&0b11111]);
         }
         printf("\n");
     }
@@ -394,14 +432,13 @@ void __maze_move(pMaze self, pQueue q,
                                 int direction,int opposite, 
                                 int condition) {
     if (condition                                                       //初始条件
-        && (0 == (self->maze[op] & opposite) || END == self->maze[op])  //不走原方向
-        && 0 == (self->maze[point]&direction)                           //该方向没走过
+        // && (0 == (self->maze[op] & opposite) || END == self->maze[op])  //不走原方向
+        && !__util_hasBit(self->maze[point], direction)                 //该方向没走过
         && WALK != self->maze[point]                                    //不为墙
         && START != self->maze[point]                                   //不为开始
         && END != self->maze[point]) {                                  //不为结束
             if (ROAD == self->maze[point]) {
-                pData d = (pData)malloc(sizeof(Data));
-                d->Integer = point;
+                pData d = toDataByInt(point);
                 q->offer(q, d);    
             }
             self->maze[point] |= direction;
@@ -419,11 +456,10 @@ void __maze_move(pMaze self, pQueue q,
  * */
 void __maze_removeFlag(pMaze self, pQueue q, int direction, int p, int np, int condition) {
     if (condition
-        && 0 != (self->maze[np] & FLAG) 
-        && (direction == (self->maze[p]&direction) || START == self->maze[p])) {
+        && __util_hasBit(self->maze[np], FLAG)
+        && __util_hasBit(self->maze[p], direction) || START == self->maze[p]) {
             self->maze[np] &= ~(FLAG);
-            pData d = (pData)malloc(sizeof(Data));
-            d->Integer = np;
+            pData d = toDataByInt(np);
             q->offer(q, d);
     }
 }
@@ -433,8 +469,7 @@ void __maze_removeFlag(pMaze self, pQueue q, int direction, int p, int np, int c
  * */
 void _maze_run(pMaze self) {
     pQueue q = initQueue();
-    pData d = (pData)malloc(sizeof(Data));
-    d->Integer = self->end;
+    pData d = toDataByInt(self->end);
     q->offer(q, d);
     while(!q->isNull(q)) {
         d = q->peek(q);
@@ -447,8 +482,7 @@ void _maze_run(pMaze self) {
         __maze_move(self, q, __maze_getPoint(self, r-1, c), point, SOUTH, NORTH, r>0);
         __maze_move(self, q, __maze_getPoint(self, r, c+1), point, WEST, EAST, c<(self->column-1));
     }
-    d = (pData)malloc(sizeof(Data));
-    d->Integer = self->start;
+    d = toDataByInt(self->start);
     q->offer(q, d);
     while(!q->isNull(q)) {
         d = q->peek(q);
@@ -461,11 +495,11 @@ void _maze_run(pMaze self) {
         __maze_removeFlag(self, q, SOUTH, point, __maze_getPoint(self, r+1, c), r<(self->row-1));
         __maze_removeFlag(self, q, EAST, point, __maze_getPoint(self, r, c+1), c<(self->column-1));
     }
-    q->free(q);
+    q->free(q, __base_data_free);
     for(int i = 0; i < self->row; i++) {
         for(int j = 0; j < self->column; j++) {
             int p = __maze_getPoint(self, i, j);
-            if (0 != (self->maze[p] & FLAG)) {
+            if (__util_hasBit(self->maze[p], FLAG)) {
                 self->maze[p] = ROAD;
             }
         }
