@@ -110,6 +110,11 @@ typedef struct mazeNode {
 #define BOUNDARY_FLAG   0x080
 
 
+//method
+#define ADD_BIT(bitset, bit)    (bitset |= bit)
+#define REMOVE_BIT(bitset, bit) (bitset &= ~bit)
+#define HAS_BIT(bitset, bit)    (bitset &  bit)
+
 char* show[] = {
     "  ", "→ ", "↓ ", "↘ ",
     "← ", "↔ ", "↙ ", "er",
@@ -117,16 +122,6 @@ char* show[] = {
     "↖ ", "er", "er", "er",
     "⬛", "S ", "E "
 };
-
-/**
- * 存在某位
- * bitset:bitset
- * bit:位
- * return:是否存在
- * */
-int __util_hasBit(unsigned int bitset, unsigned int bit){
-    return bit & bitset;
-}
 
 /**
  * 基础数据释放
@@ -468,7 +463,7 @@ void __maze_move(pMaze self, pQueue q,
                                 int condition) {
     if (condition                                                       //初始条件
         // && (0 == (self->maze[op] & opposite) || END == self->maze[op])  //不走原方向
-        && !__util_hasBit(self->maze[point], direction)                 //该方向没走过
+        && !HAS_BIT(self->maze[point], direction)                 //该方向没走过
         && WALK != self->maze[point]                                    //不为墙
         && START != self->maze[point]                                   //不为开始
         && END != self->maze[point]) {                                  //不为结束
@@ -476,8 +471,8 @@ void __maze_move(pMaze self, pQueue q,
                 pData d = toDataByInt(point);
                 q->offer(q, d);    
             }
-            self->maze[point] |= direction;
-            self->maze[point] |= FLAG;
+            ADD_BIT(self->maze[point], direction);
+            ADD_BIT(self->maze[point], FLAG);
     }
 }
 
@@ -491,9 +486,9 @@ void __maze_move(pMaze self, pQueue q,
  * */
 void __maze_removeFlag(pMaze self, pQueue q, int direction, int p, int np, int condition) {
     if (condition
-        && __util_hasBit(self->maze[np], FLAG)
-        && __util_hasBit(self->maze[p], direction) || START == self->maze[p]) {
-            self->maze[np] &= ~(FLAG);
+        && HAS_BIT(self->maze[np], FLAG)
+        && HAS_BIT(self->maze[p], direction) || START == self->maze[p]) {
+            REMOVE_BIT(self->maze[np], FLAG);
             pData d = toDataByInt(np);
             q->offer(q, d);
     }
@@ -534,7 +529,7 @@ void _maze_run(pMaze self) {
     for(int i = 0; i < self->row; i++) {
         for(int j = 0; j < self->column; j++) {
             int p = __maze_getPoint(self, i, j);
-            if (__util_hasBit(self->maze[p], FLAG)) {
+            if (HAS_BIT(self->maze[p], FLAG)) {
                 self->maze[p] = ROAD;
             }
         }
