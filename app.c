@@ -86,28 +86,29 @@ typedef struct mazeNode {
     pList out;
 }mazeNode, *pMazeNode;
 
-#define EAST            0b0000000000000001
-#define SOUTH           0b0000000000000010
-#define WEST            0b0000000000000100
-#define NORTH           0b0000000000001000
+//显示移动
+#define EAST            0x001
+#define SOUTH           0x002
+#define WEST            0x004
+#define NORTH           0x008
 
-#define ROAD            0b0000000000000000
-#define WALK            0b0000000000010000
-#define START           0b0000000000010001
-#define END             0b0000000000010010
+//标记通路
+#define EASE_ROAD       0x100
+#define SOUTH_ROAD      0x200
+#define WEST_ROAD       0x400
+#define NORTH_ROAD      0x800
 
-#define FLAG            0b0000000000100000
-#define BLOCK_FLAG      0b0100000000000000
-#define FORK_FLAG       0b1000000000000000
+//其他显示
+#define ROAD            0x000
+#define WALK            0x010
+#define START           0x011
+#define END             0x012
 
-#define WN_FLAG         0b0010000000000000
-#define N_FLAG          0b0001000000000000
-#define EN_FLAG         0b0000100000000000
-#define W_FLAG          0b0000010000000000
-#define E_FLAG          0b0000001000000000
-#define WS_FLAG         0b0000000100000000
-#define S_FLAG          0b0000000010000000
-#define ES_FLAG         0b0000000001000000
+//其他标记
+#define FLAG            0x020
+#define BLOCK_FLAG      0x040
+#define BOUNDARY_FLAG   0x080
+
 
 char* show[] = {
     "  ", "→ ", "↓ ", "↘ ",
@@ -543,52 +544,44 @@ void _maze_run(pMaze self) {
 int __maze_flag(pMaze self, int r, int c){
     int point = __maze_getPoint(self, r, c);
     if (WALK != self->maze[point]) {
-        int fork_size = 4;
+        self->maze[point] |= 0xF00;
+        self->maze[point] |= FLAG;
         int en = 3;
         int es = 3;
         int wn = 3;
         int ws = 3;
         if (0 == r || 0 == c || WALK == self->maze[__maze_getPoint(self, r-1, c-1)]) {
-            self->maze[point] |= WN_FLAG;
             wn--;
         }
         if (0 == r || WALK == self->maze[__maze_getPoint(self, r-1, c)]) {
-            self->maze[point] |= N_FLAG;
-            fork_size--;
+            self->maze[point] &= ~NORTH_ROAD;
             en--;
             wn--;
         }
         if (0 == r || c == (self->column-1) || WALK == self->maze[__maze_getPoint(self, r-1, c+1)]) {
-            self->maze[point] |= EN_FLAG;
             en--;
         }
         if (0 == c || WALK == self->maze[__maze_getPoint(self, r, c-1)]) {
-            self->maze[point] |= W_FLAG;
-            fork_size--;
+            self->maze[point] &= ~WEST_ROAD;
             wn--;
             ws--;
         }
         if (c == (self->column-1) || WALK == self->maze[__maze_getPoint(self, r, c+1)]) {
-            self->maze[point] |= E_FLAG;
-            fork_size--;
+            self->maze[point] &= ~EASE_ROAD;
             en--;
             es--;
         }
         if (r == (self->row-1) || 0 == c || WALK == self->maze[__maze_getPoint(self, r+1, c-1)]) {
-            self->maze[point] |= WS_FLAG;
             ws--;
         }
         if (r == (self->row-1) || WALK == self->maze[__maze_getPoint(self, r+1, c)]) {
-            self->maze[point] |= S_FLAG;
-            fork_size--;
+            self->maze[point] &= ~SOUTH_ROAD;
             es--;
             ws--;
         }
         if (r == (self->row-1) || c == (self->column-1) || WALK == self->maze[__maze_getPoint(self, r+1, c+1)]) {
-            self->maze[point] |= ES_FLAG;
             es--;
         }
-        self->maze[point] |= fork_size >= 3 ? FORK_FLAG : 0;
         self->maze[point] |= en == 3 ? BLOCK_FLAG : 0;
         self->maze[point] |= es == 3 ? BLOCK_FLAG : 0;
         self->maze[point] |= wn == 3 ? BLOCK_FLAG : 0;
@@ -607,7 +600,7 @@ int __maze_findNodePoint(pMaze self, pList points, pList linkPoints, int point, 
     if (WALK == self->maze[point]){
         return 0;
     }
-    if (__util_hasBit(self->maze[point], 0b1111111111000000)) {
+    if (__util_hasBit(self->maze[point], FLAG)) {
         return 0;
     }
     int r = point / self->column;
@@ -615,18 +608,19 @@ int __maze_findNodePoint(pMaze self, pList points, pList linkPoints, int point, 
     __maze_flag(self, r, c);
     pData d = toDataByInt(point);
     if (
-        __util_hasBit(self->maze[point], EN_FLAG | ES_FLAG)
-        || __util_hasBit(self->maze[point], WS_FLAG | ES_FLAG)
-        || __util_hasBit(self->maze[point], WN_FLAG | WS_FLAG)
-        || __util_hasBit(self->maze[point], EN_FLAG | WN_FLAG)
-        || __util_hasBit(self->maze[point], E_FLAG | WN_FLAG)
-        || __util_hasBit(self->maze[point], E_FLAG | WS_FLAG)
-        || __util_hasBit(self->maze[point], S_FLAG | EN_FLAG)
-        || __util_hasBit(self->maze[point], S_FLAG | WN_FLAG)
-        || __util_hasBit(self->maze[point], W_FLAG | EN_FLAG)
-        || __util_hasBit(self->maze[point], W_FLAG | ES_FLAG)
-        || __util_hasBit(self->maze[point], N_FLAG | ES_FLAG)
-        || __util_hasBit(self->maze[point], N_FLAG | WS_FLAG)
+        1
+        // __util_hasBit(self->maze[point], EN_FLAG | ES_FLAG)
+        // || __util_hasBit(self->maze[point], WS_FLAG | ES_FLAG)
+        // || __util_hasBit(self->maze[point], WN_FLAG | WS_FLAG)
+        // || __util_hasBit(self->maze[point], EN_FLAG | WN_FLAG)
+        // || __util_hasBit(self->maze[point], E_FLAG | WN_FLAG)
+        // || __util_hasBit(self->maze[point], E_FLAG | WS_FLAG)
+        // || __util_hasBit(self->maze[point], S_FLAG | EN_FLAG)
+        // || __util_hasBit(self->maze[point], S_FLAG | WN_FLAG)
+        // || __util_hasBit(self->maze[point], W_FLAG | EN_FLAG)
+        // || __util_hasBit(self->maze[point], W_FLAG | ES_FLAG)
+        // || __util_hasBit(self->maze[point], N_FLAG | ES_FLAG)
+        // || __util_hasBit(self->maze[point], N_FLAG | WS_FLAG)
     ) {
         linkPoints->add(linkPoints, d, linkPoints->size);
     } else {
@@ -639,39 +633,6 @@ int __maze_findNodePoint(pMaze self, pList points, pList linkPoints, int point, 
     end |= __maze_findNodePoint(self, points, linkPoints, __maze_getPoint(self, r, c+1), r<self->column-1);
     return end || END == self->maze[point];
 }
-
-// void __maze_toNode(pMaze self, pList list, int point){
-//     pMazeNode mazeNode = (pMazeNode)malloc(sizeof(mazeNode));
-//     pList points = initList();
-//     pList linkPoint = initList();
-//     mazeNode->points = points;
-//     mazeNode->link_node = linkPoint;
-//     int end = __maze_findNodePoint(self, points, linkPoint, point, 1);
-//     mazeNode->end = end;
-//     pData d = (pData)malloc(sizeof(Data));
-//     d->Object = (void*)mazeNode;
-//     list->add(list, d, list->size);
-
-//     pNode n = linkPoint->head;
-//     while(NULL != n){
-//         int link_point = n->d->Integer;
-//         int r = point / self->column;
-//         int c = point % self->column;
-//         if (!__util_hasBit(self->maze[link_point], N_FLAG) && r>0) {
-//             __maze_toNode(self, list, __maze_getPoint(self, r-1, c));
-//         }
-//         if (!__util_hasBit(self->maze[link_point], W_FLAG) && c>0) {
-//             __maze_toNode(self, list, __maze_getPoint(self, r, c-1));
-//         }
-//         if (!__util_hasBit(self->maze[link_point], S_FLAG) && r<self->row-1) {
-//             __maze_toNode(self, list, __maze_getPoint(self, r+1, c));
-//         }
-//         if (!__util_hasBit(self->maze[link_point], E_FLAG) && c<self->column-1) {
-//             __maze_toNode(self, list, __maze_getPoint(self, r, c+1));
-//         }
-//         n = n->next;
-//     }
-// }
 
 void __mazeNode_free(pData d){
     pMazeNode mn = (pMazeNode)d->data.Object;
@@ -775,28 +736,28 @@ int __maze_move2(pMaze self, pStack nodeStack, int point, int condition) {
         int link_point = p->d->data.Integer;
         int pr = point / self->column;
         int pc = point % self->column;
-        if (!__util_hasBit(self->maze[link_point], N_FLAG) && r>0) {
+        if (!__util_hasBit(self->maze[link_point], NORTH_ROAD) && r>0) {
             if (__maze_move2(self, nodeStack, __maze_getPoint(self, r-1, c), r>0)) {
                 end = 1;
                 pData inData = toDataByInt(__maze_getPoint(self, r-1, c));
                 mazeNode->out->add(mazeNode->out, inData, 0);
             }
         }
-        if (!__util_hasBit(self->maze[link_point], W_FLAG) && c>0) {
+        if (!__util_hasBit(self->maze[link_point], WEST_ROAD) && c>0) {
             if (__maze_move2(self, nodeStack, __maze_getPoint(self, r, c-1), c>0)) {
                 end = 1;
                 pData inData = toDataByInt(__maze_getPoint(self, r, c-1));
                 mazeNode->out->add(mazeNode->out, inData, 0);
             }
         }
-        if (!__util_hasBit(self->maze[link_point], S_FLAG) && r<self->row-1) {
+        if (!__util_hasBit(self->maze[link_point], SOUTH_ROAD) && r<self->row-1) {
             if (__maze_move2(self, nodeStack, __maze_getPoint(self, r+1, c), r<self->row-1)) {
                 end = 1;
                 pData inData = toDataByInt(__maze_getPoint(self, r+1, c));
                 mazeNode->out->add(mazeNode->out, inData, 0);
             }
         }
-        if (!__util_hasBit(self->maze[link_point], E_FLAG) && c<self->column-1) {
+        if (!__util_hasBit(self->maze[link_point], EASE_ROAD) && c<self->column-1) {
             if (__maze_move2(self, nodeStack, __maze_getPoint(self, r, c+1), c<self->column-1)) {
                 end = 1;
                 pData inData = toDataByInt(__maze_getPoint(self, r, c+1));
@@ -821,8 +782,6 @@ void __debug_show(pMaze self){
             int point = __maze_getPoint(self, i, j);
             if (__util_hasBit(self->maze[point], BLOCK_FLAG)) {
                 printf("b ");
-            } else if (__util_hasBit(self->maze[point], FORK_FLAG)) {
-                printf("f ");
             } else if(__util_hasBit(self->maze[point], 0b11111111000000)) {
                 printf("%X", self->maze[point]>>6 & 0xff);
             } else {
