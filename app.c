@@ -674,7 +674,7 @@ int __maze_findNodePoint(pMaze self, pList points, pList linkPoints, int point, 
 // }
 
 void __mazeNode_free(pData d){
-    pMazeNode mn = (pMazeNode)d->Object;
+    pMazeNode mn = (pMazeNode)d->data.Object;
     mn->points->free(mn->points, __Data_free);
     mn->in->free(mn->in, __Data_free);
     mn->out->free(mn->out, __Data_free);
@@ -701,10 +701,10 @@ int __maze_move2(pMaze self, pStack nodeStack, int point, int condition) {
         int isIn = 0;
         while (!nodeStack->list->isNull(nodeStack->list)) {
             pData data = nodeStack->pop(nodeStack);
-            pMazeNode mazeNode = (pMazeNode)data->Object;
+            pMazeNode mazeNode = (pMazeNode)data->data.Object;
             for(int i = 0; i < mazeNode->points->size; i++) {
                 pData d = mazeNode->points->get(mazeNode->points, i);
-                isIn |= d->Integer == point;
+                isIn |= d->data.Integer == point;
                 points->add(points, d, 0);
             }
             for(int i = 0 ;i < mazeNode->link_node->size; i++) {
@@ -772,7 +772,7 @@ int __maze_move2(pMaze self, pStack nodeStack, int point, int condition) {
     nodeStack->push(nodeStack, d);
     pNode p = linkPoint->head;
     while(NULL != p){
-        int link_point = p->d->Integer;
+        int link_point = p->d->data.Integer;
         int pr = point / self->column;
         int pc = point % self->column;
         if (!__util_hasBit(self->maze[link_point], N_FLAG) && r>0) {
