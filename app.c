@@ -20,11 +20,19 @@ typedef struct maze{
 /**
  * 数据类型
  * */
-typedef union data {
-    void * Object;
-    int Integer;
-    double Double;
-    long Long;
+typedef struct data {
+    union {
+        void * Object;
+        int Integer;
+        double Double;
+        long Long;
+    } data;
+    enum {
+        OBJECT,
+        INTEGER,
+        DOUBLE,
+        LONG,
+    } type;
 }Data,* pData;
 /**
  * 节点
@@ -113,7 +121,8 @@ void __Data_free(pData data){
  * */
 pData toDataByInt(int integer){
     pData d = (pData)malloc(sizeof(Data));
-    d->Integer = integer;
+    d->data.Integer = integer;
+    d->type = INTEGER;
     return d;
 }
 
@@ -124,7 +133,8 @@ pData toDataByInt(int integer){
  * */
 pData toDataByObject(void* object){
     pData d = (pData)malloc(sizeof(Data));
-    d->Object = object;
+    d->data.Object = object;
+    d->type = OBJECT;
     return d;
 }
 
@@ -249,6 +259,7 @@ int _list_isNull(pList self) {
 
 /**
  * 删除链表
+ * freeData:元素删除方法
  * */
 void _list_free(pList self, void (freeData)(pData data)) {
     while (0 != self->size && NULL != self->head) {
@@ -318,6 +329,7 @@ int _queue_isNull(pQueue self) {
 
 /**
  * 删除队列
+ * freeData:元素删除方法
  * */
 void _queue_free(pQueue self, void (freeData)(pData data)) {
     self->list->free(self->list, freeData);
@@ -370,6 +382,7 @@ pData _stack_pop(pStack self) {
 
 /**
  * 删除堆栈
+ * freeData:元素删除方法
  * */
 void _stack_free(pStack self, void (freeData)(pData data)) {
     self->list->free(self->list, freeData);
@@ -473,7 +486,7 @@ void _maze_run(pMaze self) {
     q->offer(q, d);
     while(!q->isNull(q)) {
         d = q->peek(q);
-        int point = d->Integer;
+        int point = d->data.Integer;
         free(d);
         int r = point / self->column;
         int c = point % self->column;
@@ -486,7 +499,7 @@ void _maze_run(pMaze self) {
     q->offer(q, d);
     while(!q->isNull(q)) {
         d = q->peek(q);
-        int point = d->Integer;
+        int point = d->data.Integer;
         free(d);
         int r = point / self->column;
         int c = point % self->column;
@@ -599,7 +612,7 @@ pMaze initMaze(unsigned int row, unsigned int column) {
 /**
  * 获取种子
  * */
-int __getSeed(){
+int __menu_inputSeed(){
     int i = 0;
     char ch = getchar();
     if ('\n' == ch) {
@@ -636,7 +649,7 @@ int __getSeed(){
 /**
  * 随机生成迷宫菜单
  * */
-pMaze _randomMazeMenu() {
+pMaze __menu_random() {
     int r = 0;
     int c = 0;
     printf("                              ==== 随机生成 ====\n");
@@ -651,7 +664,7 @@ pMaze _randomMazeMenu() {
     getchar();
     pMaze maze = initMaze(r, c);
     printf("请输入种子(留空则为随机种子):");
-    int seed = __getSeed();
+    int seed = __menu_inputSeed();
     maze->generate(maze, seed);
     printf("种子为:%d的迷宫为:\n", seed);
     maze->print(maze);
@@ -677,7 +690,7 @@ pMaze _randomMazeMenu() {
                 in = '\0';
                 break;
             case '3':
-                return _randomMazeMenu();
+                return __menu_random();
             default:
                 printf("输入错误，请选择正确的选项!\n");
                 in = '\0';
@@ -689,7 +702,7 @@ pMaze _randomMazeMenu() {
 /**
  * 文件输入迷宫菜单
  * */
-pMaze _fileMazeMenu() {
+pMaze __menu_file() {
     printf("请输入文件名:");
     char* fileName = (char *)malloc(sizeof(char)*64);
     scanf("%s", fileName);
@@ -704,7 +717,7 @@ pMaze _fileMazeMenu() {
         in = getchar();
         while('\n' != in && '\n'!=getchar());
         if ('n' == in || 'N' == in) {
-            return _fileMazeMenu();
+            return __menu_file();
         } else if ('Y' == in ||'y' == in || '\n' == in) {
             return maze;
         } else {
@@ -727,10 +740,10 @@ void menu() {
     pMaze maze = NULL;
     switch (in) {
         case '1':
-            maze = _randomMazeMenu();
+            maze = __menu_random();
             break;
         case '2':
-            maze = _fileMazeMenu();
+            maze = __menu_file();
             break;
         case '0':
             return;
