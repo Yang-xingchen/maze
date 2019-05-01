@@ -24,8 +24,6 @@ typedef struct data {
     union {
         void * Object;
         int Integer;
-        double Double;
-        long Long;
     } data;
     enum {
         OBJECT,
@@ -33,6 +31,7 @@ typedef struct data {
         DOUBLE,
         LONG,
     } type;
+    int (*equal)(struct data*, struct data*, int (*obj_equal)(void*, void*));
 }Data,* pData;
 /**
  * 节点
@@ -53,6 +52,7 @@ typedef struct list {
     pData (*get)(struct list *, unsigned int);
     void (*foreach)(struct list *, void (*consumer)(pData));
     int (*isNull)(struct list *);
+    int (*consist)(struct list *, pData, int (*obj_equal)(void*, void*));
     void (*free)(struct list *, void (*freeData)(pData));
 }list, *pList;
 /**
@@ -110,6 +110,36 @@ void __Data_free(pData data){
 }
 
 /**
+ * 元素比较
+ * other:相比的元素
+ * obj_equal:无用参数，请使用NULL
+ * return:是否相同
+ * */
+int __Data_equalByInt(pData self, pData other, int (*obj_equal)(void*, void*)){
+    if (INTEGER == other->type) {
+        return self->data.Integer == other->data.Integer;
+    }
+    return 0;
+}
+
+/**
+ * 元素比较
+ * other:相比的元素
+ * obj_equal:比较方法，可为NULL（比较地址）
+ * return:是否相同
+ * */
+int __Data_equalByObj(pData self, pData other, int (*obj_equal)(void*, void*)){
+    if (OBJECT == other->type) {
+        if (NULL != obj_equal){
+            return obj_equal(self->data.Object, other->data.Object);
+        } else {
+            return self->data.Object == other->data.Object;
+        }
+    }
+    return 0;
+}
+
+/**
  * 包装Data
  * integer:包装的int值
  * return:创建的Data
@@ -118,6 +148,7 @@ pData toDataByInt(int integer){
     pData d = (pData)malloc(sizeof(Data));
     d->data.Integer = integer;
     d->type = INTEGER;
+    d->equal = __Data_equalByInt;
     return d;
 }
 
@@ -130,6 +161,7 @@ pData toDataByObject(void* object){
     pData d = (pData)malloc(sizeof(Data));
     d->data.Object = object;
     d->type = OBJECT;
+    d->equal = __Data_equalByObj;
     return d;
 }
 
@@ -233,6 +265,23 @@ pData _list_get(pList list, unsigned int index) {
 }
 
 /**
+ * 存在某元素
+ * d:存在的元素
+ * obj_equal:比较方式，为NULL使用默认方式
+ * return:是否存在
+ * */
+int _list_consist(pList self, pData d, int (*obj_equal)(void*, void*)){
+    pNode n = self->head;
+    while(NULL != n) {
+        if (d->equal(d, n->d, obj_equal)) {
+            return 1;
+        }
+        n = n->next;
+    }
+    return 0;
+}
+
+/**
  * 遍历链表
  * consumer:消费者函数，即遍历链表每个元素做的事
  * */
@@ -280,6 +329,7 @@ pList initList() {
     l->get = _list_get;
     l->foreach = _list_foreach;
     l->isNull = _list_isNull;
+    l->consist = _list_consist;
     l->free = _list_free;
     return l;
 }
