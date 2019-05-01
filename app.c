@@ -73,25 +73,28 @@ typedef struct stack {
     pList list;
     pData (*pop)(struct stack*);
     void (*push)(struct stack *,pData);
+    int (*isNull)(struct stack *);
     void (*free)(struct stack *, void (*freeData)(pData));
 }stack, *pStack;
 
-#define EAST            0b0000000000000001
-#define SOUTH           0b0000000000000010
-#define WEST            0b0000000000000100
-#define NORTH           0b0000000000001000
+#define EAST            0x01
+#define SOUTH           0x02
+#define WEST            0x04
+#define NORTH           0x08
 
-#define ROAD            0b0000000000000000
-#define WALK            0b0000000000010000
-#define START           0b0000000000010001
-#define END             0b0000000000010010
+#define ROAD            0x00
+#define WALK            0x10
+#define START           0x11
+#define END             0x12
 
-#define FLAG            0b0000000000100000
+#define FLAG            0x20
 
 //method
-#define ADD_BIT(bitset, bit)    (bitset |= bit)
-#define REMOVE_BIT(bitset, bit) (bitset &= ~bit)
-#define HAS_BIT(bitset, bit)    (bitset &  bit)
+#define ADD_BIT(bitset, bit)                            (bitset |= bit)
+#define ADD_BIT_CONDITION(bitset, bit, condition)       (ADD_BIT(bitset, (condition) ? (bit) : 0))
+#define REMOVE_BIT(bitset, bit)                         (bitset &= ~bit)
+#define REMOVE_BIT_CONDITION(bitset, bit, condition)    (REMOVE_BIT(bitset, (condition) ? (bit) : 0))
+#define HAS_BIT(bitset, bit)                            (bitset &  bit)
 
 char* show[] = {
     "  ", "→ ", "↓ ", "↘ ",
@@ -426,6 +429,14 @@ pData _stack_pop(pStack self) {
 }
 
 /**
+ * 堆栈是否为空
+ * return:为空返回1,不为空返回0
+ * */
+int _stack_isNull(pStack self) {
+    return self->list->isNull(self->list);
+}
+
+/**
  * 删除堆栈
  * freeData:元素删除方法
  * */
@@ -442,6 +453,7 @@ pStack initStack() {
     s->list = initList();
     s->pop = _stack_pop;
     s->push = _stack_push;
+    s->isNull = _stack_isNull;
     s->free = _stack_free;
     return s;
 }
@@ -462,7 +474,7 @@ int __maze_getPoint(pMaze self, int row, int column) {
 void _maze_show(pMaze self) {
     for(int i = 0; i < self->row; i++) {
         for(int j = 0; j < self->column; j++) {
-            printf(show[self->maze[__maze_getPoint(self, i, j)]&0b11111]);
+            printf(show[self->maze[__maze_getPoint(self, i, j)]&0x1F]);
         }
         printf("\n");
     }
