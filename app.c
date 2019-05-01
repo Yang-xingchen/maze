@@ -142,6 +142,9 @@ void __Data_free(pData data){
  * return:是否相同
  * */
 int __Data_equalByInt(pData self, pData other, int (*obj_equal)(void*, void*)){
+    if (NULL == other) {
+        return 0;
+    }
     if (INTEGER == other->type) {
         return self->data.Integer == other->data.Integer;
     }
@@ -155,6 +158,9 @@ int __Data_equalByInt(pData self, pData other, int (*obj_equal)(void*, void*)){
  * return:是否相同
  * */
 int __Data_equalByObj(pData self, pData other, int (*obj_equal)(void*, void*)){
+    if (NULL == other) {
+        return 0;
+    }
     if (OBJECT == other->type) {
         if (NULL != obj_equal){
             return obj_equal(self->data.Object, other->data.Object);
@@ -203,6 +209,9 @@ int _list_add(pList self, pData data, unsigned int index) {
     if (0 == index) {
         node->last = NULL;
         node->next = self->head;
+        if (NULL!=self->head) {
+            self->head->last = node;
+        }
         self->head = node;
         self->size++;
         return 0;
@@ -219,6 +228,7 @@ int _list_add(pList self, pData data, unsigned int index) {
         p = p->next;
     }
     if (index != i) {
+        free(node);
         return 1;
     }
     if (NULL != p->next) {
