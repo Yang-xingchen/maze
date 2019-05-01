@@ -181,15 +181,15 @@ pData toDataByObject(void* object){
  * return：是否失败
  * */
 int _list_add(pList self, pData data, unsigned int index) {
-    pNode node = (pNode)malloc(sizeof(node));
-    node->d = data;
+    pNode n = (pNode)malloc(sizeof(node));
+    n->d = data;
     if (0 == index) {
-        node->last = NULL;
-        node->next = self->head;
+        n->last = NULL;
+        n->next = self->head;
         if (NULL!=self->head) {
-            self->head->last = node;
+            self->head->last = n;
         }
-        self->head = node;
+        self->head = n;
         self->size++;
         return 0;
     }
@@ -205,15 +205,15 @@ int _list_add(pList self, pData data, unsigned int index) {
         p = p->next;
     }
     if (index != i) {
-        free(node);
+        free(n);
         return 1;
     }
     if (NULL != p->next) {
-        p->next->last = node;
+        p->next->last = n;
     }
-    node->next = p->next;
-    p->next = node;
-    node->last = p;
+    n->next = p->next;
+    p->next = n;
+    n->last = p;
     self->size++;
     return 0;
 }
@@ -363,6 +363,7 @@ int _queue_offer(pQueue self, pData d) {
     if (NULL == self->list->head) {
         self->list->head = n;
     }
+    self->list->size++;
     return 0;
 }
 
@@ -434,6 +435,7 @@ pData _stack_pop(pStack self) {
     n->d = NULL;
     n->last = NULL;
     n->next = NULL;
+    self->list->size--;
     free(n);
     return d;
 }
