@@ -752,7 +752,7 @@ int __maze_move_inExistBlock(pMaze self, int point, pStack nodeStack, pList node
                 ADD_BIT(self->maze[point], BLOCK_IN);
                 return 1;
             }
-            nodeStack->push(nodeStack, toDataByObject(mazeNode));
+            nodeStack->push(nodeStack, toDataByObject(mazeNode, __mazeNode_free));
             mazeNode->end = __maze_move_block(self, mazeNode, nodeStack, nodeList);
             __Data_free(nodeStack->pop(nodeStack));
             return mazeNode->end;
@@ -801,7 +801,7 @@ int __maze_move_isBlock(pMaze self, pStack nodeStack, pList nodeList, int point)
     if (mazeNode->end) {
         __maze_move_flagToEnd(self, mazeNode);
     } else {
-        pData d = toDataByObject(mazeNode);
+        pData d = toDataByObject(mazeNode, __mazeNode_free);
         nodeStack->push(nodeStack, d);
         nodeList->add(nodeList, d, 0);
         if (__maze_move_block(self, mazeNode, nodeStack, nodeList)) {
