@@ -90,11 +90,11 @@ typedef struct stack {
 #define FLAG            0x20
 
 //method
-#define ADD_BIT(bitset, bit)                            (bitset |= bit)
+#define ADD_BIT(bitset, bit)                            ((bitset) |= (bit))
 #define ADD_BIT_CONDITION(bitset, bit, condition)       (ADD_BIT(bitset, (condition) ? (bit) : 0))
-#define REMOVE_BIT(bitset, bit)                         (bitset &= ~bit)
+#define REMOVE_BIT(bitset, bit)                         ((bitset) &= ~(bit))
 #define REMOVE_BIT_CONDITION(bitset, bit, condition)    (REMOVE_BIT(bitset, (condition) ? (bit) : 0))
-#define HAS_BIT(bitset, bit)                            (bitset &  bit)
+#define HAS_BIT(bitset, bit)                            ((bitset) & (bit))
 
 char* show[] = {
     "  ", "→ ", "↓ ", "↘ ",
