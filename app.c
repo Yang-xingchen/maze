@@ -32,6 +32,7 @@ typedef struct data {
         LONG,
     } type;
     int (*equal)(struct data*, struct data*, int (*obj_equal)(void*, void*));
+    void (*free)(struct data*);
 }Data,* pData;
 /**
  * 节点
@@ -184,6 +185,7 @@ pData toDataByInt(int integer){
     d->data.Integer = integer;
     d->type = INTEGER;
     d->equal = __Data_equalByInt;
+    d->free = __Data_free;
     return d;
 }
 
@@ -192,11 +194,12 @@ pData toDataByInt(int integer){
  * object:包装的对象
  * return:创建的Data
  * */
-pData toDataByObject(void* object){
+pData toDataByObject(void* object, void (*free)(pData)){
     pData d = (pData)malloc(sizeof(Data));
     d->data.Object = object;
     d->type = OBJECT;
     d->equal = __Data_equalByObj;
+    d->free = free;
     return d;
 }
 
@@ -345,7 +348,7 @@ int _list_isNull(pList self) {
  * freeData:元素删除方法
  * */
 void _list_free(pList self, void (freeData)(pData data)) {
-    while (0 != self->size && NULL != self->head) {
+    while (!self->isNull(self)) {
         freeData(self->remove(self, 0));
     }
     free(self);
