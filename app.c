@@ -122,9 +122,9 @@ int __maze_isWalk(pMaze self, int r, int c, int direction);
 
 char* show[] = {
     "  ", "→ ", "↓ ", "↘ ",
-    "← ", "↔ ", "↙ ", "er",
-    "↑ ", "↗ ", "↕ ", "er",
-    "↖ ", "er", "er", "er",
+    "← ", "↔ ", "↙ ", "⇓ ",
+    "↑ ", "↗ ", "↕ ", "⇒ ",
+    "↖ ", "⇑ ", "⇐ ", "* ",
     "⬛", "S ", "E "
 };
 
@@ -605,14 +605,17 @@ int __maze_flag(pMaze self, int r, int c){
     return 0;
 }
 
-int __maze_findNodePoint(pMaze self, pList points, pList linkPoint, int point, int condition){
+int __maze_findNodePoint(pMaze self, pMazeNode mazeNode, int point, int condition){
     if (!condition || WALK == self->maze[point] || HAS_BIT(self->maze[point], FLAG)) {
         return 0;
     }
-    if (HAS_BIT(self->maze[point], END)){
-        return 1;
-    }
     int end = 0;
+    if (HAS_BIT(self->maze[point], END)){
+        mazeNode->out->add(mazeNode->out, toDataByInt(point), 0);
+        end = 1;
+    }
+    pList linkPoint = mazeNode->linkPoint;
+    pList points = mazeNode->points;
     int r = point / self->column;
     int c = point % self->column;
     __maze_flag(self, r, c);
@@ -620,25 +623,25 @@ int __maze_findNodePoint(pMaze self, pList points, pList linkPoint, int point, i
     if (HAS_BIT(self->maze[point], BOUNDARY_FLAG)) {
         linkPoint->add(linkPoint, d, 0);
         points->add(points, d, 0);
-        end |= __maze_findNodePoint(self, points, linkPoint, 
+        end |= __maze_findNodePoint(self, mazeNode, 
                     __maze_getPoint(self, r, c+1), 
                     !HAS_BIT(self->maze[point], EAST_ROAD) && c<(self->column-1));
-        end |= __maze_findNodePoint(self, points, linkPoint, 
+        end |= __maze_findNodePoint(self, mazeNode, 
                     __maze_getPoint(self, r+1, c), 
                     !HAS_BIT(self->maze[point], SOUTH_ROAD) && r<(self->row-1));
-        end |= __maze_findNodePoint(self, points, linkPoint, 
+        end |= __maze_findNodePoint(self, mazeNode, 
                     __maze_getPoint(self, r, c-1), 
                     !HAS_BIT(self->maze[point], WEST_ROAD) && c>0);
-        end |= __maze_findNodePoint(self, points, linkPoint, 
+        end |= __maze_findNodePoint(self, mazeNode, 
                     __maze_getPoint(self, r-1, c), 
                     !HAS_BIT(self->maze[point], NORTH_ROAD) && r>0);
         return end;
     }
     points->add(points, d, 0);
-    end |= __maze_findNodePoint(self, points, linkPoint, __maze_getPoint(self, r, c+1), c<(self->column-1));
-    end |= __maze_findNodePoint(self, points, linkPoint, __maze_getPoint(self, r+1, c), r<(self->row-1));
-    end |= __maze_findNodePoint(self, points, linkPoint, __maze_getPoint(self, r, c-1), c>0);
-    end |= __maze_findNodePoint(self, points, linkPoint, __maze_getPoint(self, r-1, c), r>0);
+    end |= __maze_findNodePoint(self, mazeNode, __maze_getPoint(self, r, c+1), c<(self->column-1));
+    end |= __maze_findNodePoint(self, mazeNode, __maze_getPoint(self, r+1, c), r<(self->row-1));
+    end |= __maze_findNodePoint(self, mazeNode, __maze_getPoint(self, r, c-1), c>0);
+    end |= __maze_findNodePoint(self, mazeNode, __maze_getPoint(self, r-1, c), r>0);
     return end;
 }
 
@@ -719,7 +722,9 @@ int __maze_move_inExistBlock(pMaze self, int point, pStack nodeStack, pList node
             mazeNode = ((pMazeNode)tNode->d->data.Object);
             list = mazeNode->linkPoint;
             if (list->consist(list, pointData, NULL)) {
-                mazeNode->in->add(mazeNode->in, pointData, 0);
+                if (mazeNode->end){
+                    mazeNode->in->add(mazeNode->in, pointData, 0);
+                }
                 return mazeNode->end;
             }
             tNode = tNode->next;
@@ -750,21 +755,24 @@ int __maze_move_isRoad(pMaze self, pStack nodeStack, pList nodeList, int point){
     int c = point % self->column;
     if (__maze_move(self, nodeStack, nodeList, __maze_getPoint(self, r, c+1), c<(self->column-1))) {
         end = 1;
-        ADD_BIT(self->maze[point], EAST);
+        ADD_BIT_CONDITION(self->maze[point], EAST, START != (self->maze[point] & 0x1F));
+        ADD_BIT_CONDITION(self->maze[point], TO_END, end);
     }
     if (__maze_move(self, nodeStack, nodeList, __maze_getPoint(self, r+1, c), r<(self->row-1))) {
         end = 1;
-        ADD_BIT(self->maze[point], SOUTH);
+        ADD_BIT_CONDITION(self->maze[point], SOUTH, START != (self->maze[point] & 0x1F));
+        ADD_BIT_CONDITION(self->maze[point], TO_END, end);
     }
     if (__maze_move(self, nodeStack, nodeList, __maze_getPoint(self, r, c-1), c>0)) {
         end = 1;
-        ADD_BIT(self->maze[point], WEST);
+        ADD_BIT_CONDITION(self->maze[point], WEST, START != (self->maze[point] & 0x1F));
+        ADD_BIT_CONDITION(self->maze[point], TO_END, end);
     }
     if (__maze_move(self, nodeStack, nodeList, __maze_getPoint(self, r-1, c), r>0)) {
         end = 1;
-        ADD_BIT(self->maze[point], NORTH);
+        ADD_BIT_CONDITION(self->maze[point], NORTH, START != (self->maze[point] & 0x1F));
+        ADD_BIT_CONDITION(self->maze[point], TO_END, end);
     }
-    ADD_BIT_CONDITION(self->maze[point], TO_END, end);
     return end;
 }
 
@@ -772,29 +780,28 @@ int __maze_move_isBlock(pMaze self, pStack nodeStack, pList nodeList, int point)
     int r = point / self->column;
     int c = point % self->column;
     pMazeNode mazeNode = initMazeNode();
-    if (START != self->maze[point]) {
-        pData inData = toDataByInt(point);
-        mazeNode->in->add(mazeNode->in, inData, 0);
-    }
+    pData inData = toDataByInt(point);
+    mazeNode->in->add(mazeNode->in, inData, 0);
     REMOVE_BIT(self->maze[point], FLAG);
-    mazeNode->end = __maze_findNodePoint(self, mazeNode->points, mazeNode->linkPoint, point, 1);
+    mazeNode->end = __maze_findNodePoint(self, mazeNode, point, 1);
     if (mazeNode->end) {
         __maze_move_flagToEnd(self, mazeNode);
+    } else {
+        pData d = toDataByObject(mazeNode);
+        nodeStack->push(nodeStack, d);
+        nodeList->add(nodeList, d, 0);
+        if (__maze_move_block(self, mazeNode, nodeStack, nodeList)) {
+            __maze_move_flagToEnd(self, mazeNode);
+        }
+        nodeStack->pop(nodeStack);
     }
-    pData d = toDataByObject(mazeNode);
-    nodeStack->push(nodeStack, d);
-    nodeList->add(nodeList, d, 0);
-    if (__maze_move_block(self, mazeNode, nodeStack, nodeList)) {
-        __maze_move_flagToEnd(self, mazeNode);
-    }
-    nodeStack->pop(nodeStack);
     printf("---------------%d\n", mazeNode->end);
     __debug_show2(self);
     return mazeNode->end;
 }
 
 int __maze_move(pMaze self, pStack nodeStack, pList nodeList, int point, int condition) {
-    if (!condition || WALK == self->maze[point]) {
+    if (!condition || WALK == (self->maze[point] & 0x1F)) {
         return 0;
     }
     if (END == self->maze[point] || HAS_BIT(self->maze[point], TO_END)) {
@@ -813,11 +820,99 @@ int __maze_move(pMaze self, pStack nodeStack, pList nodeList, int point, int con
     return __maze_move_isRoad(self, nodeStack, nodeList, point);
 }
 
+void __maze_run_move(pMaze self, pQueue q, int point, int op, int direction, int opposite, int condition){
+    if (condition
+        && (!HAS_BIT(self->maze[op], opposite) || END == self->maze[op])
+        && !HAS_BIT(self->maze[point], direction)
+        && WALK != (self->maze[point] & 0x1F)
+        && START != (self->maze[point] & 0x1F)
+        && END != (self->maze[point] & 0x1F)
+        && HAS_BIT(self->maze[point], TO_END)
+    ) {
+        if (ROAD == (self->maze[point] & 0x1F)){
+            q->offer(q, toDataByInt(point));
+        }
+        ADD_BIT(self->maze[point], direction);
+        ADD_BIT(self->maze[point], FLAG);
+    }
+}
+
+void __maze_run_removeFlag(pMaze self, pQueue q, int direction, int p, int np, int condition) {
+    if (condition
+        && HAS_BIT(self->maze[np], FLAG)
+        && (HAS_BIT(self->maze[p], direction) || START == self->maze[p])) {
+            REMOVE_BIT(self->maze[np], FLAG);
+            q->offer(q, toDataByInt(np));
+    }
+}
+
+void __maze_run_node(pMaze self, pList nodeList){
+    while(!nodeList->isNull(nodeList)){
+        pData d = nodeList->remove(nodeList, 0);
+        pMazeNode mazeNode = ((pMazeNode)d->data.Object);
+        if (!mazeNode->end) {
+            continue;
+        }
+        pNode pointNode = mazeNode->points->head;
+        while(NULL!=pointNode){
+            REMOVE_BIT(self->maze[pointNode->d->data.Integer], FLAG);
+            pointNode = pointNode->next;
+        }
+        pQueue q = initQueue();
+        pNode toNode = mazeNode->out->head;
+        while(NULL != toNode){
+            q->offer(q, toDataByInt(toNode->d->data.Integer));
+            toNode = toNode->next;
+        }
+        while(!q->isNull(q)){
+            pData data = q->peek(q);
+            int point = data->data.Integer;
+            int r = point / self->column;
+            int c = point % self->column;
+            __Data_free(data);
+            __maze_run_move(self, q, __maze_getPoint(self, r, c-1), point, EAST, WEST, c>0);
+            __maze_run_move(self, q, __maze_getPoint(self, r-1, c), point, SOUTH, NORTH, r>0);
+            __maze_run_move(self, q, __maze_getPoint(self, r, c+1), point, WEST, EAST, c<(self->column-1));
+            __maze_run_move(self, q, __maze_getPoint(self, r+1, c), point, NORTH, SOUTH, r<(self->row-1));
+        }
+        pNode inNode = mazeNode->in->head;
+        while(NULL != inNode){
+            q->offer(q, toDataByInt(inNode->d->data.Integer));
+            inNode = inNode->next;
+        }
+        while(!q->isNull(q)){
+            pData data = q->peek(q);
+            int point = data->data.Integer;
+            int r = point / self->column;
+            int c = point % self->column;
+            __Data_free(data);
+            __maze_run_removeFlag(self, q, EAST, point, __maze_getPoint(self, r, c+1), c<(self->column-1));
+            __maze_run_removeFlag(self, q, SOUTH, point, __maze_getPoint(self, r+1, c), r<(self->row-1));
+            __maze_run_removeFlag(self, q, WEST, point, __maze_getPoint(self, r, c-1), c>0);
+            __maze_run_removeFlag(self, q, NORTH, point, __maze_getPoint(self, r-1, c), r>0);
+        }
+        q->free(q, NULL);
+        __Data_free(d);
+        pointNode = mazeNode->points->head;
+        while(NULL!=pointNode){
+            if (HAS_BIT(self->maze[pointNode->d->data.Integer], FLAG)) {
+                self->maze[pointNode->d->data.Integer] = ROAD;
+            }
+            pointNode = pointNode->next;
+        }
+        printf("-----------\n");
+        self->print(self);
+    }
+}
+
 void _maze_run(pMaze self){
     pList nodeList = initList();
     pStack nodeStack = initStack();
     __maze_move(self, nodeStack, nodeList, self->start, 1);
+    __maze_run_node(self, nodeList);
     nodeStack->free(nodeStack, NULL);
+    nodeList->free(nodeList, __mazeNode_free);
+    __debug_show(self);
 }
 
 /**
@@ -876,7 +971,7 @@ pMaze initMazeByFile(char *fileName) {
     }
     fclose(file);
     ret->maze = m;
-    ret->print = __debug_show;
+    ret->print = _maze_show;
     ret->generate = _maze_generateRoad;
     ret->save = _maze_save;
     ret->free = _maze_free;
@@ -902,7 +997,7 @@ pMaze initMaze(unsigned int row, unsigned int column) {
     ret->start = -1;
     ret->end = -1;
     ret->maze = m;
-    ret->print = __debug_show;
+    ret->print = _maze_show;
     ret->generate = _maze_generateRoad;
     ret->save = _maze_save;
     ret->free = _maze_free;
