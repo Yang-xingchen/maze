@@ -54,7 +54,7 @@ typedef struct list {
     void (*foreach)(struct list *, void (*consumer)(pData));
     int (*isNull)(struct list *);
     int (*consist)(struct list *, pData, int (*obj_equal)(void*, void*));
-    void (*free)(struct list *, void (*freeData)(pData));
+    void (*free)(struct list *);
 }list, *pList;
 /**
  * 队列
@@ -65,7 +65,7 @@ typedef struct queue {
     int (*offer)(struct queue *, pData);
     pData (*peek)(struct queue *);
     int (*isNull)(struct queue *);
-    void (*free)(struct queue *, void (*freeData)(pData));
+    void (*free)(struct queue *);
 }queue, *pQueue;
 /**
  * 堆栈
@@ -75,7 +75,7 @@ typedef struct stack {
     pData (*pop)(struct stack*);
     void (*push)(struct stack *,pData);
     int (*isNull)(struct stack *);
-    void (*free)(struct stack *, void (*freeData)(pData));
+    void (*free)(struct stack *);
 }stack, *pStack;
 
 #define EAST            0x01
@@ -319,11 +319,11 @@ int _list_isNull(pList self) {
 
 /**
  * 删除链表
- * freeData:元素删除方法
  * */
-void _list_free(pList self, void (freeData)(pData data)) {
+void _list_free(pList self) {
     while (!self->isNull(self)) {
-        freeData(self->remove(self, 0));
+        pData d = self->remove(self, 0);
+        d->free(d);
     }
     free(self);
 }
@@ -391,10 +391,9 @@ int _queue_isNull(pQueue self) {
 
 /**
  * 删除队列
- * freeData:元素删除方法
  * */
-void _queue_free(pQueue self, void (freeData)(pData data)) {
-    self->list->free(self->list, freeData);
+void _queue_free(pQueue self) {
+    self->list->free(self->list);
     free(self);
 }
 
@@ -453,10 +452,9 @@ int _stack_isNull(pStack self) {
 
 /**
  * 删除堆栈
- * freeData:元素删除方法
  * */
-void _stack_free(pStack self, void (freeData)(pData data)) {
-    self->list->free(self->list, freeData);
+void _stack_free(pStack self) {
+    self->list->free(self->list);
     free(self);
 }
 
@@ -580,7 +578,7 @@ void _maze_run(pMaze self) {
         __maze_removeFlag(self, q, SOUTH, point, __maze_getPoint(self, r+1, c), r<(self->row-1));
         __maze_removeFlag(self, q, EAST, point, __maze_getPoint(self, r, c+1), c<(self->column-1));
     }
-    q->free(q, __base_data_free);
+    q->free(q);
     for(int i = 0; i < self->row; i++) {
         for(int j = 0; j < self->column; j++) {
             int p = __maze_getPoint(self, i, j);
