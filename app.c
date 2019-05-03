@@ -833,46 +833,27 @@ int __maze_move_inExistBlock(pMaze self, int point, pStack nodeStack, pList node
 
 int __maze_move_isRoad(pMaze self, pStack nodeStack, pList nodeList, int point){
     int end = 0;
-    int ok = 0;
     int r = point / self->column;
     int c = point % self->column;
-    while (ok < 4){
-        if (!HAS_BIT(self->maze[point], EAST) 
-            && __maze_move(self, nodeStack, nodeList, __maze_getPoint(self, r, c+1), c<(self->column-1))) {
-            end = 1;
-            ADD_BIT(self->maze[point], EAST);
-            ADD_BIT(self->maze[point], TO_END);
-            ok = 0;
-            continue;
-        }
-        ok++;
-        if (!HAS_BIT(self->maze[point], SOUTH) 
-            && __maze_move(self, nodeStack, nodeList, __maze_getPoint(self, r+1, c), r<(self->row-1))) {
-            end = 1;
-            ADD_BIT(self->maze[point], SOUTH);
-            ADD_BIT(self->maze[point], TO_END);
-            ok = 0;
-            continue;
-        }
-        ok++;
-        if (!HAS_BIT(self->maze[point], WEST) 
-            && __maze_move(self, nodeStack, nodeList, __maze_getPoint(self, r, c-1), c>0)) {
-            end = 1;
-            ADD_BIT(self->maze[point], WEST);
-            ADD_BIT(self->maze[point], TO_END);
-            ok = 0;
-            continue;
-        }
-        ok++;
-        if (!HAS_BIT(self->maze[point], NORTH) 
-            && __maze_move(self, nodeStack, nodeList, __maze_getPoint(self, r-1, c), r>0)) {
-            end = 1;
-            ADD_BIT(self->maze[point], NORTH);
-            ADD_BIT(self->maze[point], TO_END);
-            ok = 0;
-            continue;
-        }
-        ok++;
+    if (__maze_move(self, nodeStack, nodeList, __maze_getPoint(self, r, c+1), c<(self->column-1))) {
+        end = 1;
+        ADD_BIT(self->maze[point], EAST);
+        ADD_BIT(self->maze[point], TO_END);
+    }
+    if (__maze_move(self, nodeStack, nodeList, __maze_getPoint(self, r+1, c), r<(self->row-1))) {
+        end = 1;
+        ADD_BIT(self->maze[point], SOUTH);
+        ADD_BIT(self->maze[point], TO_END);
+    }
+    if (__maze_move(self, nodeStack, nodeList, __maze_getPoint(self, r, c-1), c>0)) {
+        end = 1;
+        ADD_BIT(self->maze[point], WEST);
+        ADD_BIT(self->maze[point], TO_END);
+    }
+    if (__maze_move(self, nodeStack, nodeList, __maze_getPoint(self, r-1, c), r>0)) {
+        end = 1;
+        ADD_BIT(self->maze[point], NORTH);
+        ADD_BIT(self->maze[point], TO_END);
     }
     return end;
 }
