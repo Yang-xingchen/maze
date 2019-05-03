@@ -523,14 +523,18 @@ void _maze_show(pMaze self) {
             int point = __maze_getPoint(self, i, j);
             if (HAS_BIT(self->maze[point], WALK)) {
                 printf(WALK_SHOW);
-            } else if(HAS_BIT(self->maze[point], ROAD)) {
-                printf(ROAD_SHOW);
             } else if(HAS_BIT(self->maze[point], START)) {
                 printf(START_SHOW);
             } else if(HAS_BIT(self->maze[point], END)) {
                 printf(END_SHOW);
+            } else if(HAS_BIT(self->maze[point], ROAD)) {
+                if (HAS_BIT(self->maze[point], DIRETCION)) {
+                    printf(show[self->maze[point] & DIRETCION]);
+                } else {
+                    printf(ROAD_SHOW);
+                }
             } else {
-                printf(show[self->maze[point] & DIRETCION]);
+                printf("er");
             }
         }
         printf("\n");
@@ -590,7 +594,7 @@ void __debug_show2(pMaze self){
                 printf(" %c", HAS_BIT(self->maze[point], TO_END)?'E':'B');
             } else {
                 if (HAS_BIT(self->maze[point], DIRETCION_ROAD)) {
-                    printf(show[self->maze[point] & DIRETCION]);
+                    printf(show[self->maze[point]>>8 & DIRETCION]);
                 } else {
                     printf("--");
                 }
@@ -821,8 +825,6 @@ int __maze_move_isRoad(pMaze self, pStack nodeStack, pList nodeList, int point){
     int ok = 0;
     int r = point / self->column;
     int c = point % self->column;
-    printf("(%d,%d)\n", r, c);
-    self->print(self);
     while (ok < 4){
         if (!HAS_BIT(self->maze[point], EAST) 
             && __maze_move(self, nodeStack, nodeList, __maze_getPoint(self, r, c+1), c<(self->column-1))) {
