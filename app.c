@@ -115,16 +115,16 @@ typedef struct stack {
 #define REMOVE_BIT_CONDITION(bitset, bit, condition)    (REMOVE_BIT(bitset, (condition) ? (bit) : 0))
 #define HAS_BIT(bitset, bit)                            ((bitset) & (bit))
 
-const char* show[] = {
+char* show[] = {
     "  ", "→ ", "↓ ", "↘ ",
     "← ", "↔ ", "↙ ", "⇓ ",
     "↑ ", "↗ ", "↕ ", "⇒ ",
     "↖ ", "⇑ ", "⇐ ", "* "
 };
-const char* ROAD_SHOW = "  ";
-const char* WALK_SHOW = "⬛";
-const char* START_SHOW = "S ";
-const char* END_SHOW = "E ";
+char* ROAD_SHOW = "  ";
+char* WALK_SHOW = "⬛";
+char* START_SHOW = "S ";
+char* END_SHOW = "E ";
 
 
 /**
@@ -509,21 +509,21 @@ int __maze_getPoint(pMaze self, int row, int column) {
  * return:显示的图形
  * */
 char* __maze_getShow(int code) {
-        if (HAS_BIT(code, WALK)) {
-            return WALK_SHOW;
-        } else if(HAS_BIT(code, START)) {
-            return START_SHOW;
-        } else if(HAS_BIT(code, END)) {
-            return END_SHOW;
-        } else if(HAS_BIT(code, ROAD)) {
-            if (HAS_BIT(code, DIRETCION)) {
-                return show[code & DIRETCION];
-            } else {
-                return ROAD_SHOW;
-            }
+    if (HAS_BIT(code, WALK)) {
+        return WALK_SHOW;
+    } else if(HAS_BIT(code, START)) {
+        return START_SHOW;
+    } else if(HAS_BIT(code, END)) {
+        return END_SHOW;
+    } else if(HAS_BIT(code, ROAD)) {
+        if (HAS_BIT(code, DIRETCION)) {
+            return show[code & DIRETCION];
         } else {
-            return "er";
+            return ROAD_SHOW;
         }
+    } else {
+        return "er";
+    }
 }
 
 /**
@@ -532,7 +532,7 @@ char* __maze_getShow(int code) {
 void _maze_show(pMaze self) {
     for(int i = 0; i < self->row; i++) {
         for(int j = 0; j < self->column; j++) {
-            printf(self->maze[__maze_getPoint(self, i, j)]);
+            printf(__maze_getShow(self->maze[__maze_getPoint(self, i, j)]));
         }
         printf("\n");
     }
@@ -608,7 +608,6 @@ void _maze_run(pMaze self) {
         __maze_move(self, q, __maze_getPoint(self, r, c+1), point, WEST, EAST, c<(self->column-1));
     }
     d = toDataByInt(self->start);
-    self->print(self);
     q->offer(q, d);
     while(!q->isNull(q)) {
         d = q->peek(q);
