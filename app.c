@@ -504,27 +504,35 @@ int __maze_getPoint(pMaze self, int row, int column) {
 }
 
 /**
+ * 获取显示图形
+ * code:代码
+ * return:显示的图形
+ * */
+char* __maze_getShow(int code) {
+        if (HAS_BIT(code, WALK)) {
+            return WALK_SHOW;
+        } else if(HAS_BIT(code, START)) {
+            return START_SHOW;
+        } else if(HAS_BIT(code, END)) {
+            return END_SHOW;
+        } else if(HAS_BIT(code, ROAD)) {
+            if (HAS_BIT(code, DIRETCION)) {
+                return show[code & DIRETCION];
+            } else {
+                return ROAD_SHOW;
+            }
+        } else {
+            return "er";
+        }
+}
+
+/**
  * 输出
  * */
 void _maze_show(pMaze self) {
     for(int i = 0; i < self->row; i++) {
         for(int j = 0; j < self->column; j++) {
-            int point = __maze_getPoint(self, i, j);
-            if (HAS_BIT(self->maze[point], WALK)) {
-                printf(WALK_SHOW);
-            } else if(HAS_BIT(self->maze[point], START)) {
-                printf(START_SHOW);
-            } else if(HAS_BIT(self->maze[point], END)) {
-                printf(END_SHOW);
-            } else if(HAS_BIT(self->maze[point], ROAD)) {
-                if (HAS_BIT(self->maze[point], DIRETCION)) {
-                    printf(show[self->maze[point] & DIRETCION]);
-                } else {
-                    printf(ROAD_SHOW);
-                }
-            } else {
-                printf("er");
-            }
+            printf(self->maze[__maze_getPoint(self, i, j)]);
         }
         printf("\n");
     }
