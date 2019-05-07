@@ -448,65 +448,6 @@ pQueue initQueue() {
 }
 
 /**
- * 压栈
- * data:数据
- * */
-void _stack_push(pStack self, pData data) {
-    self->list->add(self->list, data, 0);
-}
-
-/**
- * 弹栈
- * return:弹出的数据
- * */
-pData _stack_pop(pStack self) {
-    pNode n = self->list->head;
-    if (NULL == n) {
-        return NULL;
-    }
-    self->list->head = n->next;
-    if (NULL != self->list->head) {
-        self->list->head->last = NULL;
-    }
-    pData d = n->d;
-    n->d = NULL;
-    n->last = NULL;
-    n->next = NULL;
-    self->list->size--;
-    free(n);
-    return d;
-}
-
-/**
- * 堆栈是否为空
- * return:为空返回1,不为空返回0
- * */
-int _stack_isNull(pStack self) {
-    return self->list->isNull(self->list);
-}
-
-/**
- * 删除堆栈
- * */
-void _stack_free(pStack self) {
-    self->list->free(self->list);
-    free(self);
-}
-
-/**
- * 初始化堆栈
- * */
-pStack initStack() {
-    pStack s = (pStack)malloc(sizeof(stack));
-    s->list = initList();
-    s->pop = _stack_pop;
-    s->push = _stack_push;
-    s->isNull = _stack_isNull;
-    s->free = _stack_free;
-    return s;
-}
-
-/**
  * 获取位置
  * row:行
  * column:列
@@ -559,6 +500,12 @@ void _maze_free(pMaze self) {
     free(self);
 }
 
+/**
+ * 判断是否为墙
+ * r:行
+ * c:列
+ * direction:方向代码
+ * */
 int __maze_isWalk(pMaze self, int r, int c, int direction) {
     int result = 0;
     result |= (HAS_BIT(direction, EAST) && self->column-1 == c);
@@ -577,44 +524,9 @@ int __maze_isWalk(pMaze self, int r, int c, int direction) {
     return result;
 }
 
-void __debug_show(pMaze self){
-    for(int i = 0; i < self->row; i++) {
-        for(int j = 0; j < self->column; j++) {
-            int point = __maze_getPoint(self, i, j);
-            if (HAS_BIT(self->maze[point], TO_END)) {
-                printf("TE");
-            } else {
-                printf(__maze_getShow(self->maze[point]));
-            }
-        }
-        printf("\n");
-    }
-}
-void __debug_show2(pMaze self){
-    for(int i = 0; i < self->row; i++) {
-        for(int j = 0; j < self->column; j++) {
-            int point = __maze_getPoint(self, i, j);
-            if (HAS_BIT(self->maze[point], BLOCK_IN)||HAS_BIT(self->maze[point], BLOCK_OUT)) {
-                printf("%c%c", HAS_BIT(self->maze[point], BLOCK_IN)?'I':' ', HAS_BIT(self->maze[point], BLOCK_OUT)?'O':' ');
-            } else if (HAS_BIT(self->maze[point], BOUNDARY_FLAG)) {
-                printf("F%c", HAS_BIT(self->maze[point], BLOCK_FLAG)?(HAS_BIT(self->maze[point], TO_END)?'E':'B'):' ');
-            } else if(HAS_BIT(self->maze[point], BLOCK_FLAG)){
-                printf(" %c", HAS_BIT(self->maze[point], TO_END)?'E':'B');
-            } else {
-                if (HAS_BIT(self->maze[point], DIRETCION_ROAD) 
-                    || HAS_BIT(self->maze[point], 0xF0)) {
-                    int code = self->maze[point]>>8 & DIRETCION;
-                    ADD_BIT(code, self->maze[point] &0xF0);
-                    printf(__maze_getShow(code));
-                } else {
-                    printf("--");
-                }
-            }
-        }
-        printf("\n");
-    }
-}
-
+/**
+ * 删除迷宫节点
+ * */
 void __mazeNode_free(pData d){
     pMazeNode mn = (pMazeNode)d->data.Object;
     mn->points->free(mn->points);
@@ -625,6 +537,9 @@ void __mazeNode_free(pData d){
     free(d);
 }
 
+/**
+ * 初始化迷宫节点
+ * */
 pMazeNode initMazeNode(){
     pMazeNode mn = (pMazeNode)malloc(sizeof(mazeNode));
     mn->end = 0;
@@ -636,6 +551,11 @@ pMazeNode initMazeNode(){
     return mn;
 }
 
+/**
+ * 标记迷宫格的属性
+ * r:行
+ * c:列
+ * */
 int __maze_flag(pMaze self, int r, int c){
     int point = __maze_getPoint(self, r, c);
     if (WALK != self->maze[point]) {
@@ -670,6 +590,11 @@ int __maze_flag(pMaze self, int r, int c){
     return 0;
 }
 
+/**
+ * 递归查找迷宫节点
+ * point:位置代码
+ * condition:条件
+ * */
 int __maze_findNodePoint(pMaze self, pMazeNode mazeNode, int point, int condition){
     if (!condition || WALK == self->maze[point] || HAS_BIT(self->maze[point], FLAG)) {
         return 0;
@@ -712,12 +637,25 @@ int __maze_findNodePoint(pMaze self, pMazeNode mazeNode, int point, int conditio
 
 int __maze_move(pMaze, pList, int, int);
 
+/**
+ * 标记为可达出口
+ * mazeNode:标记的迷宫节点
+ * */
 void __maze_move_flagToEnd(pMaze self, pMazeNode mazeNode){
     for(pNode n = mazeNode->points->head; NULL != n && mazeNode->end; n = n->next){
         ADD_BIT(self->maze[n->d->data.Integer], TO_END);
     }
 }
 
+/**
+ * 迷宫节点走下一个，为重构抽离的重复代码
+ * mazeNode:迷宫节点
+ * nodeList:迷宫节点链表集合
+ * point:移动的位置代码
+ * oldPoint:移动的原位置代码
+ * condtiton1:条件
+ * condition2:递归内条件
+ * */
 int __maze_move_block_toNext(pMaze self, pMazeNode mazeNode, 
                     pList nodeList, 
                     int point, int oldPoint,
@@ -739,6 +677,11 @@ int __maze_move_block_toNext(pMaze self, pMazeNode mazeNode,
     return 0;
 }
 
+/**
+ * 循环迷宫节点的出入口
+ * mazeNode:迷宫节点
+ * nodeList:迷宫节点链表集合
+ * */
 int __maze_move_block(pMaze self, pMazeNode mazeNode, pList nodeList){
     while(1){
         int end = 0;
@@ -782,6 +725,11 @@ int __maze_move_block(pMaze self, pMazeNode mazeNode, pList nodeList){
     return mazeNode->end;
 }
 
+/**
+ * 走到新的迷宫节点处理方法
+ * nodeList:迷宫节点链表集合
+ * point:进入的位置代码
+ * */
 int __maze_move_isBlock(pMaze self, pList nodeList, int point){
     int r = point / self->column;
     int c = point % self->column;
@@ -808,6 +756,11 @@ int __maze_move_isBlock(pMaze self, pList nodeList, int point){
     return mazeNode->end;
 }
 
+/**
+ * 走到已存在的迷宫节点处理方法
+ * point:进入的位置代码
+ * nodeList:迷宫节点链表集合
+ * */
 int __maze_move_inExistBlock(pMaze self, int point, pList nodeList){
     pData pointData = toDataByInt(point);
     pMazeNode mazeNode = NULL;
@@ -833,6 +786,15 @@ int __maze_move_inExistBlock(pMaze self, int point, pList nodeList){
     return 0;
 }
 
+/**
+ * 路径的下一个，为重构抽离的重复代码
+ * nodeList:迷宫节点链表集合
+ * point:原位置
+ * np:下一个位置
+ * direction:移动的方向
+ * opposite:移动的反方向
+ * condition:条件
+ * */
 int __maze_move_road_toNext(pMaze self, pList nodeList, 
         int point, int np,
         int direction, int opposite, 
@@ -848,6 +810,11 @@ int __maze_move_road_toNext(pMaze self, pList nodeList,
     return 0;
 }
 
+/**
+ * 移动到路径的处理方法
+ * nodeList:迷宫节点链表集合
+ * point:进入的位置代码
+ * */
 int __maze_move_isRoad(pMaze self, pList nodeList, int point){
     if (HAS_BIT(self->maze[point], LOCK)) {
         return 0;
@@ -879,6 +846,12 @@ int __maze_move_isRoad(pMaze self, pList nodeList, int point){
     return end;
 }
 
+/**
+ * 迷宫移动
+ * nodeList:迷宫节点链表集合
+ * point:进入的位置代码
+ * condition:条件
+ * */
 int __maze_move(pMaze self, pList nodeList, int point, int condition) {
     if (!condition || HAS_BIT(self->maze[point], WALK)) {
         return 0;
@@ -896,6 +869,15 @@ int __maze_move(pMaze self, pList nodeList, int point, int condition) {
     return __maze_move_isRoad(self, nodeList, point);
 }
 
+/**
+ * 迷宫节点内添加移动路径
+ * q:队列
+ * point:当前位置代码
+ * op:原来位置代码
+ * direction:移动的方向
+ * opposite:移动的反方向
+ * condition:条件
+ * */
 void __maze_run_move(pMaze self, pQueue q, int point, int op, int direction, int opposite, int condition){
     if (condition
         && !HAS_BIT(self->maze[op], opposite)
@@ -911,6 +893,14 @@ void __maze_run_move(pMaze self, pQueue q, int point, int op, int direction, int
     }
 }
 
+/**
+ * 清楚标记
+ * q:队列
+ * direction:方向
+ * p:位置代码
+ * np:下一个位置代码
+ * condition:条件
+ * */
 void __maze_run_removeFlag(pMaze self, pQueue q, int direction, int p, int np, int condition) {
     if (condition
         && HAS_BIT(self->maze[p], direction)) {
@@ -921,22 +911,10 @@ void __maze_run_removeFlag(pMaze self, pQueue q, int direction, int p, int np, i
     }
 }
 
-void __printInt(pData d){
-    printf("%d ", d->data.Integer);
-}
-void __printMN(pMazeNode n){
-    printf("---%d---", n);
-    printf("\npoints:");
-    n->points->foreach(n->points, __printInt);
-    printf("\nlinkPoint:");
-    n->linkPoint->foreach(n->linkPoint, __printInt);
-    printf("\nin:");
-    n->in->foreach(n->in, __printInt);
-    printf("\nout:");
-    n->out->foreach(n->out, __printInt);
-    printf("\n------------\n");
-}
-
+/**
+ * 迷宫节点内的移动
+ * nodeList:迷宫节点的链表集合
+ * */
 void __maze_run_node(pMaze self, pList nodeList){
     for(pNode ln = nodeList->head; NULL != ln; ln = ln->next){
         pMazeNode mazeNode = (pMazeNode)ln->d->data.Object;
@@ -989,18 +967,13 @@ void __maze_run_node(pMaze self, pList nodeList){
     }
 }
 
+/**
+ * 迷宫移动
+ * */
 void _maze_run(pMaze self){
     pList nodeList = initList();
     __maze_move(self, nodeList, self->start, 1);
-    // printf("-------------\n");
-    // __debug_show2(self);
-    // printf("-------------\n");
-    // __debug_show(self);
     __maze_run_node(self, nodeList);
-    // printf("*************\n");
-    // __debug_show2(self);
-    // printf("*************\n");
-    // __debug_show(self);
     nodeList->free(nodeList);
 }
 
