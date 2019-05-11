@@ -787,6 +787,7 @@ int __maze_move_inExistBlock(pMaze self, int point, pList nodeList){
         pList points = mazeNode->linkPoint;
         if (points->consist(points, pointData, NULL)) {
             if (mazeNode->lock) {
+                pointData->free(pointData);
                 return 0;
             }
             if (!mazeNode->end) {
@@ -801,6 +802,7 @@ int __maze_move_inExistBlock(pMaze self, int point, pList nodeList){
             return mazeNode->end;
         }
     }
+    pointData->free(pointData);
     return 0;
 }
 
@@ -870,7 +872,7 @@ int __maze_move(pMaze self, pList nodeList, int point, int condition) {
     if (!condition || HAS_BIT(self->maze[point], WALK) || HAS_BIT(self->maze[point], LOCK)) {
         return 0;
     }
-    if (HAS_BIT(self->maze[point], BOUNDARY_FLAG)) {
+    if (HAS_BIT(self->maze[point], BLOCK_FLAG)) {
         return __maze_move_inExistBlock(self, point, nodeList);
     }
     if (HAS_BIT(self->maze[point], END | TO_END)) {
@@ -954,7 +956,7 @@ void __maze_run_node(pMaze self, pList nodeList){
             }
             int r = point / self->column;
             int c = point % self->column;
-            __Data_free(data);
+            data->free(data);
             __maze_run_move(self, q, __maze_getPoint(self, r, c-1), point, EAST, WEST, c>0);
             __maze_run_move(self, q, __maze_getPoint(self, r-1, c), point, SOUTH, NORTH, r>0);
             __maze_run_move(self, q, __maze_getPoint(self, r, c+1), point, WEST, EAST, c<(self->column-1));
@@ -969,7 +971,7 @@ void __maze_run_node(pMaze self, pList nodeList){
             int point = data->data.Integer;
             int r = point / self->column;
             int c = point % self->column;
-            __Data_free(data);
+            data->free(data);
             __maze_run_removeFlag(self, q, EAST, point, __maze_getPoint(self, r, c+1), c<(self->column-1));
             __maze_run_removeFlag(self, q, SOUTH, point, __maze_getPoint(self, r+1, c), r<(self->row-1));
             __maze_run_removeFlag(self, q, WEST, point, __maze_getPoint(self, r, c-1), c>0);
