@@ -538,6 +538,26 @@ void __mazeNode_free(pData d){
 }
 
 /**
+ * 上锁
+ * */
+void __mazeNode_lock(pMaze self, pMazeNode mn){
+    mn->lock = 1;
+    for(pNode node = mn->points->head; node != NULL; node = node->next){
+        ADD_BIT(self->maze[node->d->data.Integer], LOCK);
+    }
+}
+
+/**
+ * 解锁
+ * */
+void __mazeNode_unlock(pMaze self, pMazeNode mn){
+    mn->lock = 0;
+    for(pNode node = mn->points->head; node != NULL; node = node->next){
+        REMOVE_BIT(self->maze[node->d->data.Integer], LOCK);
+    }
+}
+
+/**
  * 初始化迷宫节点
  * */
 pMazeNode initMazeNode(){
@@ -663,17 +683,14 @@ int __maze_move_block_toNext(pMaze self, pMazeNode mazeNode,
     if (!condition1 || !condition2) {
         return 0;
     }
-    ADD_BIT(self->maze[oldPoint], LOCK);
     if (__maze_move(self, nodeList, point, condition2)) {
         __maze_move_flagToEnd(self, mazeNode);
         mazeNode->end = 1;
         pData inData = toDataByInt(oldPoint);
         mazeNode->out->add(mazeNode->out, inData, 0);
         ADD_BIT(self->maze[oldPoint], BLOCK_OUT);
-        REMOVE_BIT(self->maze[oldPoint], LOCK);
         return 1;
     }
-    REMOVE_BIT(self->maze[oldPoint], LOCK);
     return 0;
 }
 
@@ -687,7 +704,7 @@ int __maze_move_block(pMaze self, pMazeNode mazeNode, pList nodeList){
         int end = 0;
         for(pNode p = mazeNode->linkPoint->head; NULL != p; p = p->next){
             int link_point = p->d->data.Integer;
-            if(HAS_BIT(self->maze[link_point], BLOCK_OUT)){
+            if(HAS_BIT(self->maze[link_point], BLOCK_OUT | BLOCK_IN)){
                 continue;
             }
             int r = link_point / self->column;
@@ -743,11 +760,11 @@ int __maze_move_isBlock(pMaze self, pList nodeList, int point){
     if (end) {
         __maze_move_flagToEnd(self, mazeNode);
     } else {
-        mazeNode->lock = 1;
+        __mazeNode_lock(self, mazeNode);
         if (__maze_move_block(self, mazeNode, nodeList)) {
             __maze_move_flagToEnd(self, mazeNode);
         }
-        mazeNode->lock = 0;
+        __mazeNode_unlock(self, mazeNode);
     }
     if (mazeNode->end) {
         mazeNode->in->add(mazeNode->in, inData, 0);
@@ -772,9 +789,9 @@ int __maze_move_inExistBlock(pMaze self, int point, pList nodeList){
                 return 0;
             }
             if (!mazeNode->end) {
-                mazeNode->lock = 1;
+                __mazeNode_lock(self, mazeNode);
                 mazeNode->end = __maze_move_block(self, mazeNode, nodeList);
-                mazeNode->lock = 0;
+                __mazeNode_unlock(self, mazeNode);
             }
             if (mazeNode->end) {
                 mazeNode->in->add(mazeNode->in, pointData, 0);
@@ -799,11 +816,10 @@ int __maze_move_road_toNext(pMaze self, pList nodeList,
         int point, int np,
         int direction, int opposite, 
         int condition){
-    if (HAS_BIT(self->maze[np], opposite)) {
+    if (HAS_BIT(self->maze[point], direction) || HAS_BIT(self->maze[np], opposite)) {
         return 0;
-    }
-    if (!HAS_BIT(self->maze[point], direction) && __maze_move(self, nodeList, np, condition)) {
-        ADD_BIT_CONDITION(self->maze[point], direction, !HAS_BIT(self->maze[np], opposite));
+    } else if (__maze_move(self, nodeList, np, condition)) {
+        ADD_BIT(self->maze[point], direction);
         ADD_BIT(self->maze[point], TO_END);
         return 1;
     }
@@ -816,9 +832,6 @@ int __maze_move_road_toNext(pMaze self, pList nodeList,
  * point:进入的位置代码
  * */
 int __maze_move_isRoad(pMaze self, pList nodeList, int point){
-    if (HAS_BIT(self->maze[point], LOCK)) {
-        return 0;
-    }
     int end = 0;
     int r = point / self->column;
     int c = point % self->column;
@@ -853,7 +866,7 @@ int __maze_move_isRoad(pMaze self, pList nodeList, int point){
  * condition:条件
  * */
 int __maze_move(pMaze self, pList nodeList, int point, int condition) {
-    if (!condition || HAS_BIT(self->maze[point], WALK)) {
+    if (!condition || HAS_BIT(self->maze[point], WALK) || HAS_BIT(self->maze[point], LOCK)) {
         return 0;
     }
     if (HAS_BIT(self->maze[point], BOUNDARY_FLAG)) {
@@ -883,7 +896,8 @@ void __maze_run_move(pMaze self, pQueue q, int point, int op, int direction, int
         && !HAS_BIT(self->maze[op], opposite)
         && !HAS_BIT(self->maze[point], direction)
         && !HAS_BIT(self->maze[point], WALK)
-        && HAS_BIT(self->maze[point], TO_END)
+        && HAS_BIT(self->maze[point], BLOCK_FLAG)
+        // && HAS_BIT(self->maze[point], TO_END)
     ) {
         if (!HAS_BIT(self->maze[point], START) || HAS_BIT(self->maze[point], END)){
             q->offer(q, toDataByInt(point));
@@ -921,7 +935,6 @@ void __maze_run_node(pMaze self, pList nodeList){
         if (!mazeNode->end) {
             continue;
         }
-        // __printMN(mazeNode);
         for(pNode pointNode = mazeNode->points->head; NULL!=pointNode; pointNode = pointNode->next){
             REMOVE_BIT(self->maze[pointNode->d->data.Integer], FLAG);
         }
@@ -934,6 +947,9 @@ void __maze_run_node(pMaze self, pList nodeList){
         while(!q->isNull(q)){
             pData data = q->peek(q);
             int point = data->data.Integer;
+            if (!mazeNode->points->consist(mazeNode->points, data, NULL)){
+                continue;
+            }
             int r = point / self->column;
             int c = point % self->column;
             __Data_free(data);
