@@ -128,6 +128,7 @@ int __maze_isWalk(pMaze self, int r, int c, int direction);
 #define REMOVE_BIT(bitset, bit)                         ((bitset) &= ~(bit))
 #define REMOVE_BIT_CONDITION(bitset, bit, condition)    (REMOVE_BIT(bitset, (condition) ? (bit) : 0))
 #define HAS_BIT(bitset, bit)                            ((bitset) & (bit))
+#define CLEAR() printf("\033[2J\033[H")
 
 char* show[] = {
     "  ", "→ ", "↓ ", "↘ ",
@@ -876,6 +877,7 @@ int __maze_move(pMaze self, pList nodeList, int point, int condition) {
         return 1;
     }
     __maze_flag(self, point / self->column, point % self->column);
+    printf("\033[u =>正在移动：(%3d, %3d)", point / self->column, point % self->column);
     if (HAS_BIT(self->maze[point], BLOCK_FLAG)) {
         return __maze_move_isBlock(self, nodeList, point);
     }
@@ -988,7 +990,10 @@ void __maze_run_node(pMaze self, pList nodeList){
  * */
 void _maze_run(pMaze self){
     pList nodeList = initList();
+    printf("\033[s\033[?25l");
     __maze_move(self, nodeList, self->start, 1);
+    printf("\033[u\033[K =>移动完成！");
+    printf("\033[?25h");
     __maze_run_node(self, nodeList);
     nodeList->free(nodeList);
 }
@@ -1124,6 +1129,7 @@ int __menu_inputSeed(){
  * 随机生成迷宫菜单
  * */
 pMaze __menu_random() {
+    CLEAR();
     int r = 0;
     int c = 0;
     printf("                              ==== 随机生成 ====\n");
@@ -1183,6 +1189,7 @@ pMaze __menu_file() {
     while('\n'!=getchar());
     pMaze maze = initMazeByFile(fileName);
     free(fileName);
+    CLEAR();
     printf("当前迷宫为:\n");
     maze->print(maze);
     char in = '\0';
@@ -1205,6 +1212,7 @@ pMaze __menu_file() {
  * 菜单
  * */
 void menu() {
+    CLEAR();
     printf("                              ==== 迷宫问题 ====\n");
     printf("1.随机生成迷宫\n");
     printf("2.文件读取迷宫\n");
@@ -1231,7 +1239,8 @@ void menu() {
         return;
     }
     maze->run(maze);
-    printf("结果为:\n");
+    CLEAR();
+    printf(HAS_BIT(maze->maze[maze->start], TO_END)?"已找到通路:\n":"未找到通路：\n");
     maze->print(maze);
     printf("按下回车键返回主菜单\n");
     while('\n' != getchar());
